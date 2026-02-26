@@ -1,0 +1,38 @@
+{
+  "name": "paypi-plugin",
+  "version": "1.0.0",
+  "description": "Payment Gateway for Pi Network - Non-custodial, prepaid credit system, 2% fee",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "node lib/credits-pure-math.js"
+  },
+  "keywords": [
+    "pi-network",
+    "payment-gateway",
+    "cryptocurrency",
+    "blockchain",
+    "non-custodial",
+    "prepaid-credits"
+  ],
+  "author": "Yee Yu Ket",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yyk-hub/paypi-plugin.git"
+  },
+  "homepage": "https://github.com/yyk-hub/paypi-plugin#readme",
+  "dependencies": {
+    "@stellar/stellar-sdk": "git+https://github.com/stellar/js-stellar-sdk#make-eventsource-optional",
+    "@vespaiach/axios-fetch-adapter": "^0.3.1",
+    "axios": "^0.26.1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.59.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -365,10 +365,10 @@ MIT License
 
 ## 🆘 Support
 
-- **Documentation:** https://docs.paypi.dev
+- **Documentation:** https://github.com/yyk-hub/paypi-plugin#readme
 - **Issues:** https://github.com/yyk-hub/paypi-plugin/issues
 - **Discord:** https://discord.gg/paypi
-- **Email:** support@paypi.dev
+- **Email:** yyk.1borneo@gmail.com
 
 ---
 
