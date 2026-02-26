@@ -4,9 +4,9 @@
   "description": "Payment Gateway for Pi Network - Non-custodial, prepaid credit system, 2% fee",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "tail": "wrangler tail",
+    "dev": "wrangler pages dev public --compatibility-flag=nodejs_compat",
+    "deploy": "wrangler pages deploy public",
+    "tail": "wrangler pages deployment tail",
     "test": "node lib/credits-pure-math.js"
   },
   "keywords": [
@@ -17,7 +17,7 @@
     "non-custodial",
     "prepaid-credits"
   ],
-  "author": "Yee Yu Ket",
+  "author": "Your Name",
   "license": "MIT",
   "repository": {
     "type": "git",

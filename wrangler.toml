@@ -1,0 +1,32 @@
+name = "paypi-plugin"
+compatibility_date = "2024-10-14"
+compatibility_flags = ["nodejs_compat"]
+
+# Pages project - no pages_build_output_dir needed
+# Static files served from /public
+# API routes from /functions
+
+# D1 Database for orders and credits
+[[d1_databases]]
+binding = "DB"
+database_name = "paypi_orders"
+database_id = ""  # Create with: wrangler d1 create paypi_orders
+
+# Environment variables
+[vars]
+PI_NETWORK = "testnet"  # Change to "mainnet" for production
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# Required secrets:
+# - PI_API_KEY: Your Pi Network API key from https://develop.pi
+# - APP_WALLET_SECRET: Your app's Stellar secret key (starts with S)
+# - ADMIN_TOKEN: Password for admin dashboard access
+# 
+# Optional secrets:
+# - WEBHOOK_SECRET: For signing webhook payloads
+# - WEBHOOK_URL: Your server's webhook endpoint
+
+# Custom domains (optional)
+# [[routes]]
+# pattern = "pay.yourdomain.com/*"
+# zone_name = "yourdomain.com"
