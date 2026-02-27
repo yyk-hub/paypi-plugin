@@ -2,15 +2,11 @@ name = "paypi-plugin"
 compatibility_date = "2024-10-14"
 compatibility_flags = ["nodejs_compat"]
 
-# Pages project - no pages_build_output_dir needed
-# Static files served from /public
-# API routes from /functions
-
 # D1 Database for orders and credits
 [[d1_databases]]
 binding = "DB"
-database_name = "paypi_orders"
-database_id = ""  # Create with: wrangler d1 create paypi_orders
+database_name = "paypi-db"  # Database name (contains multiple tables)
+database_id = ""  # Create with: wrangler d1 create paypi-db
 
 # Environment variables
 [vars]
