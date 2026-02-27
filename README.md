@@ -113,7 +113,7 @@ git push -u origin main
 2. **Pages** → **Create a project** → **Connect to Git**
 3. Select your `paypi-plugin` repository
 4. **Build settings:**
-   - **Build command:** (leave empty)
+   - **Build command:** `npm install`
    - **Output directory:** `public`
    - **Root directory:** (leave empty)
 5. Click **Save and Deploy**
