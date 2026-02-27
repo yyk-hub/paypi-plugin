@@ -1,7 +1,7 @@
 {
   "name": "paypi-plugin",
   "version": "1.0.0",
-  "description": "Payment Gateway for Pi Network - Non-custodial, prepaid credit system, 2% fee",
+  "description": "Payment Gateway for Pi Network - Non-custodial, prepaid credit system with 2% processing fee",
   "type": "module",
   "scripts": {
     "dev": "wrangler pages dev public --compatibility-flag=nodejs_compat",
@@ -15,9 +15,10 @@
     "cryptocurrency",
     "blockchain",
     "non-custodial",
-    "prepaid-credits"
+    "prepaid-credits",
+    "cloudflare-pages"
   ],
-  "author": "Your Name",
+  "author": "",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,6 +29,11 @@
     "@stellar/stellar-sdk": "git+https://github.com/stellar/js-stellar-sdk#make-eventsource-optional",
     "@vespaiach/axios-fetch-adapter": "^0.3.1",
     "axios": "^0.26.1"
+  },
+  "overrides": {
+    "@stellar/stellar-sdk": {
+      "axios": "$axios"
+    }
   },
   "devDependencies": {
     "wrangler": "^4.59.1"
