@@ -82,8 +82,13 @@ export async function onRequestPost(context) {
       wallet_address: wallet_address,
       credit_balance: 0,
       message: 'Registration successful! Deposit π to add credits and start accepting payments.',
+      credit_system: {
+        formula: '1π deposit = 1 credit',
+        fee: '2% per transaction (amount × 0.02 credits)',
+        example: 'Deposit 200π → Process 10,000π worth of payments'
+      },
       next_step: 'deposit_credits',
-      deposit_url: `${env.PLATFORM_URL}/merchant/deposit?merchant_id=${merchantId}`
+      deposit_url: `${env.PLATFORM_URL || request.url.split('/api')[0]}/merchant/deposit?merchant_id=${merchantId}`
     }, { headers: corsHeaders });
 
   } catch (error) {
