@@ -1,14 +1,13 @@
 // functions/api/merchant/register.js
 /**
- * Merchant Registration with Prepaid Credit Model
+ * Secure Merchant Registration
  * 
- * Flow:
- * 1. Merchant provides business info + wallet address
- * 2. System generates API key
- * 3. Merchant deposits π for credits
- * 4. Credits added to account
- * 5. Can start accepting payments
+ * - Creates merchant profile
+ * - Generates hashed API key
+ * - Never stores plain-text keys
  */
+
+import { createApiKey } from '../../../lib/api-key-security.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -23,8 +22,7 @@ export async function onRequestPost(context) {
     const {
       business_name,
       business_email,
-      wallet_address,
-      initial_deposit  // Optional: Deposit during registration
+      wallet_address
     } = await request.json();
 
     // Validate
@@ -45,15 +43,13 @@ export async function onRequestPost(context) {
       }, { status: 400, headers: corsHeaders });
     }
 
-    // Generate IDs
+    // Generate merchant ID
     const merchantId = `merch_${Date.now()}_${generateSecureKey(8)}`;
-    const apiKey = `pk_live_${generateSecureKey(32)}`;
 
     // Create merchant account
     await env.DB.prepare(`
       INSERT INTO merchants (
         merchant_id,
-        api_key,
         wallet_address,
         business_name,
         business_email,
@@ -61,34 +57,43 @@ export async function onRequestPost(context) {
         total_deposits,
         payments_enabled,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
+      ) VALUES (?, ?, ?, ?, 0, 0, 0, unixepoch())
     `).bind(
       merchantId,
-      apiKey,
       wallet_address,
       business_name,
-      business_email,
-      0,  // Start with 0 credits
-      0,  // No deposits yet
-      0   // Payments disabled until deposit
+      business_email
     ).run();
 
+    // Create secure API key (hashed in database)
+    const keyResult = await createApiKey(env, merchantId);
+
     console.log('✅ Merchant registered:', merchantId);
+    console.log('⚠️ API key generated (show ONCE!):', keyResult.key_prefix);
 
     return Response.json({
       success: true,
       merchant_id: merchantId,
-      api_key: apiKey,
+      
+      // ⚠️ CRITICAL: This is the ONLY time the plain-text key is shown!
+      api_key: keyResult.api_key,
+      key_id: keyResult.key_id,
+      key_prefix: keyResult.key_prefix,
+      
       wallet_address: wallet_address,
       credit_balance: 0,
-      message: 'Registration successful! Deposit π to add credits and start accepting payments.',
+      
+      // Credit system explanation
       credit_system: {
         formula: '1π deposit = 1 credit',
         fee: '2% per transaction (amount × 0.02 credits)',
         example: 'Deposit 200π → Process 10,000π worth of payments'
       },
+      
+      warning: '⚠️ SAVE YOUR API KEY NOW! It will never be shown again.',
+      
       next_step: 'deposit_credits',
-      deposit_url: `${env.PLATFORM_URL || request.url.split('/api')[0]}/merchant/deposit?merchant_id=${merchantId}`
+      deposit_url: `${request.url.split('/api')[0]}/merchant/deposit?merchant_id=${merchantId}`
     }, { headers: corsHeaders });
 
   } catch (error) {
