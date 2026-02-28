@@ -1,8 +1,10 @@
 // functions/api/merchant/check-credits.js
 /**
  * Check if merchant has sufficient credits for payment
- * Pure Math Credit System: 1π = 1 credit, payment costs amount × 0.02
+ * Uses secure API key validation (hashed comparison)
  */
+
+import { validateApiKey } from '../../../lib/api-key-security.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -25,26 +27,38 @@ export async function onRequestPost(context) {
       });
     }
 
-    const apiKey = authHeader.replace('Bearer ', '');
+    const providedKey = authHeader.replace('Bearer ', '');
     const { amount } = await request.json();
 
-    // Get merchant by API key
-    const merchant = await env.DB.prepare(
-      'SELECT merchant_id, credit_balance, payments_enabled FROM merchants WHERE api_key = ?'
-    ).bind(apiKey).first();
-
-    if (!merchant) {
+    // Validate API key (secure hash comparison)
+    const validation = await validateApiKey(env, providedKey);
+    
+    if (!validation.valid) {
       return Response.json({ 
-        error: 'Invalid API key' 
+        error: validation.error 
       }, { 
         status: 401, 
         headers: corsHeaders 
       });
     }
 
+    const merchantId = validation.merchant_id;
+
+    // Get merchant credit balance
+    const merchant = await env.DB.prepare(
+      'SELECT credit_balance, payments_enabled FROM merchants WHERE merchant_id = ?'
+    ).bind(merchantId).first();
+
+    if (!merchant) {
+      return Response.json({ 
+        error: 'Merchant not found' 
+      }, { 
+        status: 404, 
+        headers: corsHeaders 
+      });
+    }
+
     // Calculate credits needed (Pure Math: 2% fee)
-    // Payment cost = amount × 0.02
-    // Example: 100π payment = 100 × 0.02 = 2 credits
     const creditsNeeded = amount * 0.02;
 
     // Check if payments are enabled
@@ -62,7 +76,7 @@ export async function onRequestPost(context) {
 
     // Check balance
     const hasEnough = merchant.credit_balance >= creditsNeeded;
-    const lowBalance = merchant.credit_balance < 20;  // < 20 credits = < 1000π capacity
+    const lowBalance = merchant.credit_balance < 20;
 
     return Response.json({
       has_credits: hasEnough,
