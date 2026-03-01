@@ -111,7 +111,7 @@ Console: "⚠️ Merchant has low credit balance"
 Enable debug to see credit check details:
 
 ```html
-<script src="https://your-worker.workers.dev/sdk/paypi.js" 
+<script src="https://your-paypi.pages.dev/sdk/v1/paypi.js" 
         data-debug="true">
 </script>
 ```
@@ -211,7 +211,7 @@ Status: "Processing payment..."
 **No API changes needed** - the `/api/merchant/check-credits` endpoint already exists!
 
 Just update the SDK file:
-1. Replace `public/sdk/paypi.js` with updated version
+1. Replace `public/sdk/v1/paypi.js` with updated version
 2. Deploy: `wrangler pages deploy public`
 3. Test in Pi Browser
 
