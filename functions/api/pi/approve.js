@@ -10,6 +10,11 @@
  * 5. Save payment_id to order
  */
 
+import { 
+  calculateCreditCost,
+  CREDIT_CONSTANTS 
+} from '../../../lib/credits-pure-math.js';
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const corsHeaders = {
@@ -75,8 +80,8 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Calculate credits needed (Pure Math: 2% fee)
-    const creditsNeeded = order.total_amt * 0.02;
+    // Calculate credits needed using pure math function
+    const creditsNeeded = calculateCreditCost(order.total_amt);
     
     console.log('💰 Credit check:', {
       merchant_id: order.merchant_id,

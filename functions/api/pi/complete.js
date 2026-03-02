@@ -10,6 +10,12 @@
  * 5. Log credit transaction
  */
 
+import { 
+  calculateCreditCost,
+  calculateCapacity,
+  CREDIT_CONSTANTS 
+} from '../../../lib/credits-pure-math.js';
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const corsHeaders = {
@@ -178,8 +184,8 @@ export async function onRequestPost(context) {
       console.log('ℹ️ Payment already completed on Pi Network');
     }
 
-    // STEP 4: Deduct credits from merchant (Pure Math: amount × 0.02)
-    const creditCost = order.total_amt * 0.02;
+    // STEP 4: Deduct credits from merchant using pure math function
+    const creditCost = calculateCreditCost(order.total_amt);
     
     console.log('💳 Deducting credits:', {
       merchant_id: order.merchant_id,
@@ -204,8 +210,8 @@ export async function onRequestPost(context) {
       SET 
         credit_balance = ?,
         total_processed = total_processed + ?,
-        low_balance_warning = CASE WHEN ? < 20 THEN 1 ELSE 0 END,
-        payments_enabled = CASE WHEN ? <= 0 THEN 0 ELSE 1 END
+        low_balance_warning = CASE WHEN ? < CREDIT_CONSTANTS.LOW_BALANCE_WARNING THEN 1 ELSE 0 END,
+        payments_enabled = CASE WHEN ? <= CREDIT_CONSTANTS.ZERO_BALANCE THEN 0 ELSE 1 END
       WHERE merchant_id = ?
     `).bind(
       newBalance,
@@ -219,8 +225,8 @@ export async function onRequestPost(context) {
       old_balance: merchant.credit_balance,
       cost: creditCost,
       new_balance: newBalance,
-      low_balance_warning: newBalance < 20,
-      payments_disabled: newBalance <= 0
+      low_balance_warning: newBalance < CREDIT_CONSTANTS.LOW_BALANCE_WARNING,
+      payments_disabled: newBalance <= CREDIT_CONSTANTS.ZERO_BALANCE
     });
 
     // Log credit transaction
@@ -296,7 +302,7 @@ export async function onRequestPost(context) {
       user_uid: updatedOrder.user_uid || null,
       credits_charged: creditCost,
       merchant_balance: newBalance,
-      capacity_remaining: (newBalance / 0.02) + 'π'
+      capacity_remaining: calculateCapacity(newBalance) + 'π'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
