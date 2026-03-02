@@ -5,10 +5,15 @@
  * Merchant sends π to PayPi platform wallet
  * System adds credits to merchant's account
  * 
- * Calculation:
- * 1π deposited = 100 credits = 50π worth of processing (at 2% fee)
- * 200π deposited = 20,000 credits = 10,000π worth of processing
+ * Pure Math:
+ * 1π deposited = 1 credit = 50π processing capacity (at 2% fee)
+ * 200π deposited = 200 credits = 10,000π capacity
  */
+
+import { 
+  calculateCreditsFromDeposit,
+  calculateCapacity 
+} from '../../../lib/credits-pure-math.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -70,10 +75,8 @@ export async function onRequestPost(context) {
       body: JSON.stringify({ txid })
     });
 
-    // Calculate credits (Pure Math: 1π = 1 credit)
-    // At 2% fee: 1 credit allows processing 50π
-    // Example: 200π deposit = 200 credits = 10,000π capacity
-    const creditsToAdd = depositAmount;  // 1:1 ratio
+    // Calculate credits using pure math function
+    const creditsToAdd = calculateCreditsFromDeposit(amount);
 
     // Update merchant balance
     const merchant = await env.DB.prepare(`
@@ -129,7 +132,7 @@ export async function onRequestPost(context) {
       deposit_amount: amount + 'π',
       credits_added: creditsToAdd,
       new_balance: merchant.credit_balance + ' credits',
-      capacity: (merchant.credit_balance / 0.02) + 'π can process',
+      capacity: calculateCapacity(merchant.credit_balance) + 'π can process',
       fee_rate: '2%',
       txid: txid
     }, { headers: corsHeaders });

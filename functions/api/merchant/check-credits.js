@@ -5,6 +5,11 @@
  */
 
 import { validateApiKey } from '../../../lib/api-key-security.js';
+import { 
+  calculateCreditCost, 
+  calculateCapacity,
+  CREDIT_CONSTANTS 
+} from '../../../lib/credits-pure-math.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -58,8 +63,8 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Calculate credits needed (Pure Math: 2% fee)
-    const creditsNeeded = amount * 0.02;
+    // Calculate credits needed using pure math function
+    const creditsNeeded = calculateCreditCost(amount);
 
     // Check if payments are enabled
     if (!merchant.payments_enabled) {
@@ -68,7 +73,7 @@ export async function onRequestPost(context) {
         balance: merchant.credit_balance + ' credits',
         needed: creditsNeeded + ' credits',
         payment_amount: amount + 'π',
-        capacity: (merchant.credit_balance / 0.02) + 'π',
+        capacity: calculateCapacity(merchant.credit_balance) + 'π',
         warning: 'Payments disabled. Please deposit credits.',
         refill_required: true
       }, { headers: corsHeaders });
@@ -76,14 +81,14 @@ export async function onRequestPost(context) {
 
     // Check balance
     const hasEnough = merchant.credit_balance >= creditsNeeded;
-    const lowBalance = merchant.credit_balance < 20;
+    const lowBalance = merchant.credit_balance < CREDIT_CONSTANTS.LOW_BALANCE_WARNING;
 
     return Response.json({
       has_credits: hasEnough,
       balance: merchant.credit_balance + ' credits',
       needed: creditsNeeded + ' credits',
       payment_amount: amount + 'π',
-      capacity: (merchant.credit_balance / 0.02) + 'π',
+      capacity: calculateCapacity(merchant.credit_balance) + 'π',
       fee_rate: '2%',
       warning: lowBalance ? 'Low balance. Consider refilling soon.' : null,
       refill_required: !hasEnough
