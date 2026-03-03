@@ -7,7 +7,8 @@
 
 // CRITICAL: Import the initialized Horizon (with fetch adapter)
 import { Horizon } from '../../../lib/stellar-init.js';
-import { Keypair, TransactionBuilder, Operation, Asset, Networks } from '@stellar/stellar-sdk';
+import { Keypair, TransactionBuilder, Operation, Asset, Networks, Memo } from '@stellar/stellar-sdk';
+import { calculateCreditCost } from '../../../lib/credits-pure-math.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -86,8 +87,9 @@ export async function onRequestPost(context) {
       WHERE order_id = ?
     `).bind(order_id).run();
 
-    // Refund credits to merchant (they get credits back)
-    const creditsToRefund = amount * 0.02;
+    // Refund credits to merchant using pure math function
+    // When refunding payment, merchant gets credits back
+    const creditsToRefund = calculateCreditCost(amount);
     await env.DB.prepare(`
       UPDATE merchants
       SET credit_balance = credit_balance + ?
