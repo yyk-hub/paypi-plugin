@@ -130,7 +130,7 @@ wrangler d1 create paypi-db
 # database_id = "PASTE_ID_HERE"
 
 # Initialize schema
-wrangler d1 execute paypi-db --file=./schema/d1-setup.sql
+wrangler d1 execute paypi-db --file=./schema/d1-setup-secure.sql
 ```
 
 #### Step 5: Configure Environment Variables
