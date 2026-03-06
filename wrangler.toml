@@ -8,7 +8,7 @@ pages_build_output_dir = "public"
 [[d1_databases]]
 binding = "DB"
 database_name = "paypi-db"  # Database name (contains multiple tables)
-database_id = ""  # Create with: wrangler d1 create paypi-db
+database_id = "26b28595-dcdf-4a81-9757-aa02f4239eaf"  # Create with: wrangler d1 create paypi-db
 
 # Environment variables
 [vars]
