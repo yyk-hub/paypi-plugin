@@ -1,7 +1,6 @@
 name = "paypi-plugin"
 compatibility_date = "2024-10-14"
 compatibility_flags = ["nodejs_compat"]
-
 pages_build_output_dir = "public"
 
 # D1 Database for orders and credits
@@ -16,13 +15,17 @@ PI_NETWORK = "testnet"  # Change to "mainnet" for production
 
 # Secrets (set via: wrangler secret put SECRET_NAME)
 # Required secrets:
-# - PI_API_KEY: Your Pi Network API key from https://develop.pi
+# - PI_API_KEY: Your Pi Network API key from https://develop.pine.com
 # - APP_WALLET_SECRET: Your app's Stellar secret key (starts with S)
 # - ADMIN_TOKEN: Password for admin dashboard access
 # 
 # Optional secrets:
 # - WEBHOOK_SECRET: For signing webhook payloads
 # - WEBHOOK_URL: Your server's webhook endpoint
+
+# Cron triggers for maintenance tasks
+[triggers]
+crons = ["0 0 * * *"]  # Daily at midnight UTC - cleanup expired idempotency keys
 
 # Custom domains (optional)
 # [[routes]]
