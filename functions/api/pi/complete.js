@@ -16,6 +16,8 @@ import {
   CREDIT_CONSTANTS 
 } from '../../../lib/credits-pure-math.js';
 
+import { checkIdempotency, storeIdempotency } from '../../../lib/idempotency.js';
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const corsHeaders = {
