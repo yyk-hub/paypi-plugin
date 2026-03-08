@@ -1,34 +1,48 @@
 // functions/api/pi/approve.js
 /**
- * Pi Payment Approval Handler with Prepaid Credit Check
+ * Pi Payment Approval Handler with Prepaid Credit Check + Idempotency
  * 
  * Flow:
- * 1. Check if merchant has sufficient credits (Pure Math: amount × 0.02)
+ * 1. Check idempotency (prevent duplicates)
  * 2. Verify order exists
- * 3. Verify payment with Pi Network
- * 4. Approve payment on Pi Network
- * 5. Save payment_id to order
+ * 3. Check merchant has sufficient credits (Pure Math: amount × 0.02)
+ * 4. Verify payment with Pi Network
+ * 5. Approve payment on Pi Network
+ * 6. Save payment_id to order
+ * 7. Store idempotency response
  */
 
 import { 
   calculateCreditCost,
   CREDIT_CONSTANTS 
 } from '../../../lib/credits-pure-math.js';
-import { checkIdempotency, storeIdempotency } from '../../../lib/idempotency.js';
+
+import { 
+  checkIdempotency, 
+  storeIdempotency 
+} from '../../../lib/idempotency.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Idempotency-Key',
   };
 
   try {
     const body = await request.json().catch(() => ({}));
     const { payment_id, order_id } = body;
 
-    console.log('📥 Approve request:', { payment_id, order_id });
+    // STEP 1: Get idempotency key from header
+    const idempotencyKey = request.headers.get('Idempotency-Key');
+
+    console.log('📥 Approve request:', { 
+      payment_id, 
+      order_id, 
+      has_idempotency: !!idempotencyKey 
+    });
 
     if (!payment_id || !order_id) {
       return new Response(JSON.stringify({ 
@@ -45,7 +59,7 @@ export async function onRequestPost(context) {
       throw new Error('PI_API_KEY not configured');
     }
 
-    // STEP 1: Verify order exists and get merchant info
+    // STEP 2: Verify order exists and get merchant info
     console.log('🔍 Checking order in database...');
     const order = await env.DB.prepare(
       'SELECT * FROM paypi_orders WHERE order_id = ?'
@@ -64,7 +78,22 @@ export async function onRequestPost(context) {
 
     console.log('✅ Order found:', order);
 
-    // STEP 2: Check merchant credit balance (Pure Math: amount × 0.02)
+    // STEP 3: Check for cached idempotent response
+    if (idempotencyKey) {
+      const cached = await checkIdempotency(env, idempotencyKey, order.merchant_id);
+      if (cached) {
+        console.log('✅ Returning cached response from idempotency check');
+        return new Response(JSON.stringify(cached), {
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-Idempotency-Cached': 'true'
+          },
+        });
+      }
+    }
+
+    // STEP 4: Check merchant credit balance (Pure Math: amount × 0.02)
     console.log('💳 Checking merchant credits...');
     const merchant = await env.DB.prepare(
       'SELECT credit_balance, payments_enabled FROM merchants WHERE merchant_id = ?'
@@ -127,7 +156,7 @@ export async function onRequestPost(context) {
 
     console.log('✅ Merchant has sufficient credits');
 
-    // STEP 3: Check if there's already a pending payment for this order
+    // STEP 5: Check if there's already a pending payment for this order
     if (order.pi_payment_id && order.pi_payment_id !== payment_id) {
       console.log('⚠️ Different payment_id already exists for this order');
       
@@ -157,7 +186,7 @@ export async function onRequestPost(context) {
       }
     }
 
-    // STEP 4: Verify payment with Pi Network
+    // STEP 6: Verify payment with Pi Network
     console.log('🔍 Verifying payment with Pi...');
     const verifyResponse = await fetch(
       `https://api.minepi.com/v2/payments/${payment_id}`,
@@ -193,16 +222,27 @@ export async function onRequestPost(context) {
     // Check if already approved
     if (paymentData.status?.developer_approved) {
       console.log('ℹ️ Payment already approved');
-      return new Response(JSON.stringify({ 
+      
+      const response = { 
         success: true,
         message: 'Payment already approved',
-        payment_id 
-      }), {
+        payment_id,
+        order_id,
+        credits_reserved: creditsNeeded,
+        merchant_balance: merchant.credit_balance
+      };
+
+      // Store in idempotency cache even for already-approved
+      if (idempotencyKey) {
+        await storeIdempotency(env, idempotencyKey, order.merchant_id, 'approve', response);
+      }
+
+      return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // STEP 5: Approve payment on Pi Network
+    // STEP 7: Approve payment on Pi Network
     console.log('🔄 Approving payment on Pi...');
     const approveResponse = await fetch(
       `https://api.minepi.com/v2/payments/${payment_id}/approve`,
@@ -225,22 +265,31 @@ export async function onRequestPost(context) {
     const approveData = await approveResponse.json();
     console.log('✅ Payment approved on Pi:', approveData);
 
-    // STEP 6: Save payment_id in database
+    // STEP 8: Save payment_id in database
     console.log('🔄 Saving payment_id to database...');
     const updateResult = await env.DB.prepare(
-      'UPDATE paypi_orders SET pi_payment_id = ? WHERE order_id = ?'
+      'UPDATE paypi_orders SET pi_payment_id = ? WHERE order_id = ? AND pi_payment_id IS NULL'
     ).bind(payment_id, order_id).run();
 
     console.log('✅ Database updated:', updateResult);
 
-    return new Response(JSON.stringify({ 
+    // STEP 9: Prepare success response
+    const response = { 
       success: true, 
       message: 'Payment approved successfully',
       payment_id,
       order_id,
       credits_reserved: creditsNeeded,
       merchant_balance: merchant.credit_balance
-    }), {
+    };
+
+    // STEP 10: Store idempotency key for future duplicate requests
+    if (idempotencyKey) {
+      await storeIdempotency(env, idempotencyKey, order.merchant_id, 'approve', response);
+      console.log('✅ Stored idempotency key:', idempotencyKey);
+    }
+
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
@@ -261,7 +310,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Idempotency-Key',
     },
   });
 }
