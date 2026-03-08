@@ -1,6 +1,6 @@
 // functions/api/merchant/credit-deposit.js
 /**
- * Merchant Credit Deposit (U2A Payment)
+ * Merchant Credit Deposit (U2A Payment) + Idempotency
  * 
  * Merchant sends π to PayPi platform wallet
  * System adds credits to merchant's account
@@ -8,6 +8,15 @@
  * Pure Math:
  * 1π deposited = 1 credit = 50π processing capacity (at 2% fee)
  * 200π deposited = 200 credits = 10,000π capacity
+ * 
+ * Flow:
+ * 1. Check idempotency (prevent duplicate deposits)
+ * 2. Verify payment on Pi Network
+ * 3. Approve & complete payment
+ * 4. Calculate credits (1:1 ratio)
+ * 5. Update merchant balance
+ * 6. Log credit transaction
+ * 7. Store idempotency response
  */
 
 import { 
@@ -15,7 +24,10 @@ import {
   calculateCapacity 
 } from '../../../lib/credits-pure-math.js';
 
-import { checkIdempotency, storeIdempotency } from '../../../lib/idempotency.js';
+import { 
+  checkIdempotency, 
+  storeIdempotency 
+} from '../../../lib/idempotency.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -23,20 +35,46 @@ export async function onRequestPost(context) {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Idempotency-Key',
   };
 
   try {
     const { pi_payment_id, txid, merchant_id, amount } = await request.json();
 
-    console.log('💰 Credit deposit:', { pi_payment_id, txid, merchant_id, amount });
+    // STEP 1: Get idempotency key from header
+    const idempotencyKey = request.headers.get('Idempotency-Key');
 
-    // Verify payment on Pi Network
-    const piRes = await fetch(`https://api.${env.PI_NETWORK === 'testnet' ? 'testnet.' : ''}minepi.com/v2/payments/${pi_payment_id}`, {
-      headers: { 
-        'Authorization': `Key ${env.PI_API_KEY}` 
-      }
+    console.log('💰 Credit deposit:', { 
+      pi_payment_id, 
+      txid, 
+      merchant_id, 
+      amount, 
+      has_idempotency: !!idempotencyKey 
     });
+
+    // STEP 2: Check for cached idempotent response
+    if (idempotencyKey) {
+      const cached = await checkIdempotency(env, idempotencyKey, merchant_id);
+      if (cached) {
+        console.log('✅ Returning cached response from idempotency check');
+        return Response.json(cached, { 
+          headers: { 
+            ...corsHeaders,
+            'X-Idempotency-Cached': 'true'
+          } 
+        });
+      }
+    }
+
+    // STEP 3: Verify payment on Pi Network
+    const piRes = await fetch(
+      `https://api.${env.PI_NETWORK === 'testnet' ? 'testnet.' : ''}minepi.com/v2/payments/${pi_payment_id}`, 
+      {
+        headers: { 
+          'Authorization': `Key ${env.PI_API_KEY}` 
+        }
+      }
+    );
 
     if (!piRes.ok) {
       throw new Error('Failed to verify payment with Pi Network');
@@ -50,37 +88,52 @@ export async function onRequestPost(context) {
     }
 
     if (payment.status.developer_completed) {
-      // Already processed
-      return Response.json({
+      // Already processed - return success without re-processing
+      const response = {
         success: true,
         message: 'Deposit already processed',
-        credits_added: 0
-      }, { headers: corsHeaders });
+        deposit_amount: amount + 'π',
+        credits_added: 0,
+        txid: txid
+      };
+
+      // Store in idempotency cache
+      if (idempotencyKey) {
+        await storeIdempotency(env, idempotencyKey, merchant_id, 'credit-deposit', response);
+      }
+
+      return Response.json(response, { headers: corsHeaders });
     }
 
-    // Approve payment (accept the deposit)
-    await fetch(`https://api.${env.PI_NETWORK === 'testnet' ? 'testnet.' : ''}minepi.com/v2/payments/${pi_payment_id}/approve`, {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Key ${env.PI_API_KEY}`,
-        'Content-Type': 'application/json'
+    // STEP 4: Approve payment (accept the deposit)
+    await fetch(
+      `https://api.${env.PI_NETWORK === 'testnet' ? 'testnet.' : ''}minepi.com/v2/payments/${pi_payment_id}/approve`, 
+      {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Key ${env.PI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
 
-    // Complete payment
-    await fetch(`https://api.${env.PI_NETWORK === 'testnet' ? 'testnet.' : ''}minepi.com/v2/payments/${pi_payment_id}/complete`, {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Key ${env.PI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ txid })
-    });
+    // STEP 5: Complete payment
+    await fetch(
+      `https://api.${env.PI_NETWORK === 'testnet' ? 'testnet.' : ''}minepi.com/v2/payments/${pi_payment_id}/complete`, 
+      {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Key ${env.PI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ txid })
+      }
+    );
 
-    // Calculate credits using pure math function
+    // STEP 6: Calculate credits using pure math function
     const creditsToAdd = calculateCreditsFromDeposit(amount);
 
-    // Update merchant balance
+    // STEP 7: Update merchant balance
     const merchant = await env.DB.prepare(`
       UPDATE merchants 
       SET 
@@ -96,7 +149,7 @@ export async function onRequestPost(context) {
       throw new Error('Merchant not found');
     }
 
-    // Log credit transaction
+    // STEP 8: Log credit transaction
     await env.DB.prepare(`
       INSERT INTO credit_transactions (
         tx_id,
@@ -125,10 +178,8 @@ export async function onRequestPost(context) {
       new_balance: merchant.credit_balance
     });
 
-    // Send notification email (optional)
-    // TODO: Implement email notification
-
-    return Response.json({
+    // STEP 9: Prepare success response
+    const response = {
       success: true,
       message: 'Credits added successfully!',
       deposit_amount: amount + 'π',
@@ -137,7 +188,15 @@ export async function onRequestPost(context) {
       capacity: calculateCapacity(merchant.credit_balance) + 'π can process',
       fee_rate: '2%',
       txid: txid
-    }, { headers: corsHeaders });
+    };
+
+    // STEP 10: Store idempotency key for future duplicate requests
+    if (idempotencyKey) {
+      await storeIdempotency(env, idempotencyKey, merchant_id, 'credit-deposit', response);
+      console.log('✅ Stored idempotency key:', idempotencyKey);
+    }
+
+    return Response.json(response, { headers: corsHeaders });
 
   } catch (error) {
     console.error('❌ Credit deposit error:', error);
@@ -155,7 +214,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Idempotency-Key',
     },
   });
 }
