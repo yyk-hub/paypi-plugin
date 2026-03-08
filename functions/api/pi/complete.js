@@ -1,13 +1,16 @@
 // functions/api/pi/complete.js
 /**
- * Pi Payment Completion Handler with Credit Deduction
+ * Pi Payment Completion Handler with Credit Deduction + Idempotency
  * 
  * Flow:
- * 1. Verify payment with Pi Network
- * 2. Complete payment on Pi Network
- * 3. Deduct credits from merchant (Pure Math: amount × 0.02)
- * 4. Update order status to Paid
- * 5. Log credit transaction
+ * 1. Check idempotency (prevent duplicates)
+ * 2. Find order by payment_id or order_id
+ * 3. Verify payment with Pi Network
+ * 4. Complete payment on Pi Network
+ * 5. Deduct credits from merchant (Pure Math: amount × 0.02)
+ * 6. Update order status to Paid
+ * 7. Log credit transaction
+ * 8. Store idempotency response
  */
 
 import { 
@@ -16,21 +19,33 @@ import {
   CREDIT_CONSTANTS 
 } from '../../../lib/credits-pure-math.js';
 
-import { checkIdempotency, storeIdempotency } from '../../../lib/idempotency.js';
+import { 
+  checkIdempotency, 
+  storeIdempotency 
+} from '../../../lib/idempotency.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Idempotency-Key',
   };
 
   try {
     const body = await request.json().catch(() => ({}));
     const { payment_id, txid, order_id } = body;
 
-    console.log('📥 Complete request:', { payment_id, txid, order_id });
+    // STEP 1: Get idempotency key from header
+    const idempotencyKey = request.headers.get('Idempotency-Key');
+
+    console.log('📥 Complete request:', { 
+      payment_id, 
+      txid, 
+      order_id, 
+      has_idempotency: !!idempotencyKey 
+    });
 
     if (!payment_id || !txid) {
       return new Response(JSON.stringify({ 
@@ -53,11 +68,11 @@ export async function onRequestPost(context) {
       throw new Error('PI_API_KEY or APP_WALLET_SECRET not configured');
     }
 
-    // STEP 1: Find order
+    // STEP 2: Find order
     let order = null;
     
     if (order_id) {
-      console.log('🔍 Looking for order:', order_id);
+      console.log('🔍 Looking for order by order_id:', order_id);
       order = await env.DB.prepare(
         'SELECT * FROM paypi_orders WHERE order_id = ?'
       ).bind(order_id).first();
@@ -87,22 +102,49 @@ export async function onRequestPost(context) {
       amount: order.total_amt,
       status: order.order_status
     });
+
+    // STEP 3: Check for cached idempotent response
+    if (idempotencyKey) {
+      const cached = await checkIdempotency(env, idempotencyKey, order.merchant_id);
+      if (cached) {
+        console.log('✅ Returning cached response from idempotency check');
+        return new Response(JSON.stringify(cached), {
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-Idempotency-Cached': 'true'
+          },
+        });
+      }
+    }
       
+    // STEP 4: Check if already completed
     if (order.order_status === 'Paid') {
       console.log('ℹ️ Order already marked as Paid');
-      return new Response(JSON.stringify({
+      
+      const response = {
         success: true,
         message: 'Payment already completed',
         order_id: order.order_id,
         payment_id,
         txid,
-        user_uid: order.user_uid || null
-      }), {
+        user_uid: order.user_uid || null,
+        order_status: 'Paid',
+        credits_charged: order.credits_charged || 0,
+        merchant_balance: null  // Don't fetch for already-completed
+      };
+
+      // Store in idempotency cache even for already-completed
+      if (idempotencyKey) {
+        await storeIdempotency(env, idempotencyKey, order.merchant_id, 'complete', response);
+      }
+
+      return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // STEP 2: Verify payment with Pi Network
+    // STEP 5: Verify payment with Pi Network
     console.log('🔍 Verifying payment with Pi Network...');
     
     const verifyResponse = await fetch(
@@ -154,7 +196,7 @@ export async function onRequestPost(context) {
       console.warn('⚠️ No user UID found in payment data');
     }
 
-    // STEP 3: Complete payment on Pi Network (if not already done)
+    // STEP 6: Complete payment on Pi Network (if not already done)
     if (!paymentData.status?.developer_completed) {
       console.log('🔄 Completing payment on Pi Network...');
       
@@ -186,7 +228,7 @@ export async function onRequestPost(context) {
       console.log('ℹ️ Payment already completed on Pi Network');
     }
 
-    // STEP 4: Deduct credits from merchant using pure math function
+    // STEP 7: Deduct credits from merchant using pure math function
     const creditCost = calculateCreditCost(order.total_amt);
     
     console.log('💳 Deducting credits:', {
@@ -212,14 +254,16 @@ export async function onRequestPost(context) {
       SET 
         credit_balance = ?,
         total_processed = total_processed + ?,
-        low_balance_warning = CASE WHEN ? < CREDIT_CONSTANTS.LOW_BALANCE_WARNING THEN 1 ELSE 0 END,
-        payments_enabled = CASE WHEN ? <= CREDIT_CONSTANTS.ZERO_BALANCE THEN 0 ELSE 1 END
+        low_balance_warning = CASE WHEN ? < ? THEN 1 ELSE 0 END,
+        payments_enabled = CASE WHEN ? <= ? THEN 0 ELSE 1 END
       WHERE merchant_id = ?
     `).bind(
       newBalance,
       order.total_amt,
       newBalance,
+      CREDIT_CONSTANTS.LOW_BALANCE_WARNING,
       newBalance,
+      CREDIT_CONSTANTS.ZERO_BALANCE || 0,
       order.merchant_id
     ).run();
 
@@ -228,10 +272,10 @@ export async function onRequestPost(context) {
       cost: creditCost,
       new_balance: newBalance,
       low_balance_warning: newBalance < CREDIT_CONSTANTS.LOW_BALANCE_WARNING,
-      payments_disabled: newBalance <= CREDIT_CONSTANTS.ZERO_BALANCE
+      payments_disabled: newBalance <= (CREDIT_CONSTANTS.ZERO_BALANCE || 0)
     });
 
-    // Log credit transaction
+    // STEP 8: Log credit transaction
     await env.DB.prepare(`
       INSERT INTO credit_transactions (
         tx_id,
@@ -252,7 +296,7 @@ export async function onRequestPost(context) {
       `Payment ${order.order_id}`
     ).run();
 
-    // STEP 5: Update order in database
+    // STEP 9: Update order in database
     console.log('🔄 Updating order in database...');
     
     let updateResult;
@@ -265,7 +309,8 @@ export async function onRequestPost(context) {
           pi_payment_id = ?,
           pi_txid = ?,
           user_uid = ?,
-          credits_charged = ?
+          credits_charged = ?,
+          completed_at = unixepoch()
         WHERE order_id = ?
       `).bind(payment_id, txid, userUid, creditCost, order.order_id).run();
       
@@ -277,7 +322,8 @@ export async function onRequestPost(context) {
           order_status = 'Paid',
           pi_payment_id = ?,
           pi_txid = ?,
-          credits_charged = ?
+          credits_charged = ?,
+          completed_at = unixepoch()
         WHERE order_id = ?
       `).bind(payment_id, txid, creditCost, order.order_id).run();
       
@@ -289,23 +335,27 @@ export async function onRequestPost(context) {
       changes: updateResult.meta?.changes
     });
 
-    // Fetch updated order
-    const updatedOrder = await env.DB.prepare(
-      'SELECT * FROM paypi_orders WHERE order_id = ?'
-    ).bind(order.order_id).first();
-
-    return new Response(JSON.stringify({
+    // STEP 10: Prepare success response
+    const response = {
       success: true,
       message: 'Payment completed successfully',
-      order_id: updatedOrder.order_id,
+      order_id: order.order_id,
       payment_id,
       txid,
-      order_status: updatedOrder.order_status,
-      user_uid: updatedOrder.user_uid || null,
+      order_status: 'Paid',
+      user_uid: userUid || null,
       credits_charged: creditCost,
       merchant_balance: newBalance,
       capacity_remaining: calculateCapacity(newBalance) + 'π'
-    }), {
+    };
+
+    // STEP 11: Store idempotency key for future duplicate requests
+    if (idempotencyKey) {
+      await storeIdempotency(env, idempotencyKey, order.merchant_id, 'complete', response);
+      console.log('✅ Stored idempotency key:', idempotencyKey);
+    }
+
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
@@ -329,7 +379,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Idempotency-Key',
     },
   });
 }
