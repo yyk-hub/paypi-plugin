@@ -23,9 +23,11 @@ PI_NETWORK = "testnet"  # Change to "mainnet" for production
 # - WEBHOOK_SECRET: For signing webhook payloads
 # - WEBHOOK_URL: Your server's webhook endpoint
 
-# Cron triggers for maintenance tasks
-[triggers]
-crons = ["0 0 * * *"]  # Daily at midnight UTC - cleanup expired idempotency keys
+# NOTE: Cloudflare Pages does NOT support cron triggers
+# For idempotency cleanup, use one of these alternatives:
+# 1. Manual cleanup via admin endpoint: POST /api/admin/cleanup-idempotency
+# 2. Deploy a separate Worker with cron (see docs/IDEMPOTENCY-CLEANUP.md)
+# 3. Client-side cleanup on each request (check expires_at)
 
 # Custom domains (optional)
 # [[routes]]
