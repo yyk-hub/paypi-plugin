@@ -282,7 +282,7 @@
       log('Step 2: Initialize Pi');
       updateBtn('⏳ Initializing...');
       
-      const isSandbox = true;
+      const isSandbox = window.location.hostname.includes("testnet");
       log(`Sandbox: ${isSandbox}`);
       
       await Pi.init({ version: "2.0", sandbox: isSandbox });
