@@ -282,7 +282,7 @@
       log('Step 2: Initialize Pi');
       updateBtn('⏳ Initializing...');
       
-      const isSandbox = window.location.hostname !== 'testnet.paypi-plugin.pages.dev';
+      const isSandbox = true;
       log(`Sandbox: ${isSandbox}`);
       
       await Pi.init({ version: "2.0", sandbox: isSandbox });
