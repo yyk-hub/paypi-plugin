@@ -471,7 +471,7 @@ async function startPayment() {
     const useIdempotency = document.getElementById('useIdempotency').checked;
     
     // Generate Order ID
-    currentOrderId = 'ORD-' + Date.now();
+    currentOrderId = 'ORD' + Date.now();
     document.getElementById('orderId').value = currentOrderId;
     document.getElementById('orderDisplay').textContent = currentOrderId;
     log(`📋 Order ID: ${currentOrderId}`, 'info');
@@ -497,7 +497,7 @@ async function startPayment() {
     
     userData = auth.user;
     document.getElementById('userDisplay').textContent = `@${userData.username || userData.uid}`;
-    log(`✓ Authenticated as @${userData.username}`, 'success');
+    log(`✓ Authenticated as @${displayName}`, 'success');
 
     // Pre-register order
     updateStatus('Registering', 'pending');
