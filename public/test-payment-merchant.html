@@ -496,7 +496,14 @@ async function startPayment() {
     });
     
     userData = auth.user;
-    document.getElementById('userDisplay').textContent = `@${userData.username || userData.uid}`;
+    
+    // Define display name safely
+    const displayName = userData.username ? userData.username : userData.uid;
+    
+    // Show user
+    document.getElementById('userDisplay').textContent = '@' + displayName;
+
+    // Log success
     log(`✓ Authenticated as @${displayName}`, 'success');
 
     // Pre-register order
