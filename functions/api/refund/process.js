@@ -87,12 +87,21 @@ export async function onRequestPost(context) {
     }
 
     const isTestnet = env.PI_NETWORK === 'testnet';
-    const piApiUrl = isTestnet 
-      ? 'https://api.testnet.minepi.com'
-      : 'https://api.minepi.com';
+    
+    // CRITICAL: Different URLs for Platform API vs Horizon API
+    // Platform API = /v2/payments endpoint (create payments, users, etc.)
+    // Horizon API = Stellar blockchain (submit transactions)
+    
+    const piPlatformUrl = isTestnet 
+      ? 'https://api.minepi.com'  // Platform API (same for both!)
+      : 'https://api.minepi.com'; // Platform API
 
-    // STEP 1: Create U2A Payment on Pi Network
-    console.log('📥 Step 1: Creating U2A payment on Pi Network...');
+    const stellarHorizonUrl = isTestnet
+      ? 'https://api.testnet.minepi.com'  // Testnet Horizon
+      : 'https://api.mainnet.minepi.com'; // Mainnet Horizon
+
+    // STEP 1: Create U2A Payment on Pi Platform
+    console.log('📥 Step 1: Creating U2A payment on Pi Platform...');
 
     const paymentBody = {
       payment: {
@@ -107,7 +116,7 @@ export async function onRequestPost(context) {
       }
     };
 
-    const createResponse = await fetch(`${piApiUrl}/v2/payments`, {
+    const createResponse = await fetch(`${piPlatformUrl}/v2/payments`, {
       method: 'POST',
       headers: {
         'Authorization': `Key ${env.PI_API_KEY}`,
@@ -130,14 +139,10 @@ export async function onRequestPost(context) {
 
     // STEP 2: Setup Stellar/Pi Blockchain Connection
     console.log('🔗 Step 2: Setting up Stellar connection...');
-
-    const horizonUrl = isTestnet
-      ? 'https://api.testnet.minepi.com'
-      : 'https://api.mainnet.minepi.com';
     
     const networkPassphrase = isTestnet ? 'Pi Testnet' : 'Pi Network';
 
-    const server = new Horizon.Server(horizonUrl);
+    const server = new Horizon.Server(stellarHorizonUrl);
     const sourceKeypair = Keypair.fromSecret(env.APP_WALLET_SECRET);
     const sourcePublicKey = sourceKeypair.publicKey();
 
@@ -178,7 +183,7 @@ export async function onRequestPost(context) {
     console.log('✔️ Step 5: Completing payment on Pi Platform...');
 
     const completeResponse = await fetch(
-      `${piApiUrl}/v2/payments/${paymentIdentifier}/complete`,
+      `${piPlatformUrl}/v2/payments/${paymentIdentifier}/complete`,
       {
         method: 'POST',
         headers: {
