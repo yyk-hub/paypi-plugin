@@ -194,6 +194,9 @@ export async function onRequestPost(context) {
 
     // STEP 2: Setup Stellar/Pi Blockchain Connection
     console.log('🔗 Step 2: Setting up Stellar connection...');
+
+    // DEBUG check
+    console.log("Wallet secret exists:", !!env.APP_WALLET_SECRET);
     
     const networkPassphrase = isTestnet ? 'Pi Testnet' : 'Pi Network';
 
