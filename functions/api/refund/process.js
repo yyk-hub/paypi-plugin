@@ -3,15 +3,12 @@
  * Process Refund (CEO Pattern - U2A + A2U Hybrid)
  * 
  * Flow (completes in ~5 seconds):
- * 1. Create U2A payment on Pi Network (user gets notification)
- * 2. Build Stellar transaction (A2U - platform sends π)
- * 3. Sign and submit to Stellar network
- * 4. Complete payment on Pi Platform
- * 5. Update database and return credits
- * 
- * This uses the CEO pattern: Create U2A payment, then immediately
- * complete it with A2U Stellar transaction. User gets notified but
- * platform controls the refund execution.
+ * 1. Auto-cancel any incomplete payments
+ * 2. Create U2A payment on Pi Network (user gets notification)
+ * 3. Build Stellar transaction (A2U - platform sends π)
+ * 4. Sign and submit to Stellar network
+ * 5. Complete payment on Pi Platform
+ * 6. Update database and return credits
  */
 
 import { Keypair, TransactionBuilder, Operation, Asset, Horizon, Memo } from '@stellar/stellar-sdk';
@@ -102,30 +99,60 @@ export async function onRequestPost(context) {
     // STEP 0: Check for incomplete payments and cancel them
     console.log('🔍 Checking for incomplete payments...');
     
-    const incompleteRes = await fetch(
-      'https://api.minepi.com/v2/payments/incomplete_server_payments',
-      {
-        headers: { 'Authorization': `Key ${env.PI_API_KEY}` }
-      }
-    );
-    
-    if (incompleteRes.ok) {
-      const incomplete = await incompleteRes.json();
+    try {
+      const incompleteRes = await fetch(
+        `${piPlatformUrl}/v2/payments/incomplete_server_payments`,
+        {
+          headers: { 'Authorization': `Key ${env.PI_API_KEY}` }
+        }
+      );
       
-      // Cancel any incomplete payments for this user
-      for (const payment of incomplete) {
-        if (payment.user_uid === order.user_uid && !payment.status.cancelled) {
-          console.log('🗑️ Auto-cancelling incomplete payment:', payment.identifier);
-          
-          await fetch(
-            `https://api.minepi.com/v2/payments/${payment.identifier}/cancel`,
-            {
-              method: 'POST',
-              headers: { 'Authorization': `Key ${env.PI_API_KEY}` }
+      if (incompleteRes.ok) {
+        const incompleteData = await incompleteRes.json();
+        
+        // Handle different response structures
+        let incompletePayments = [];
+        
+        if (Array.isArray(incompleteData)) {
+          // Response is directly an array
+          incompletePayments = incompleteData;
+        } else if (incompleteData.incomplete_payments && Array.isArray(incompleteData.incomplete_payments)) {
+          // Response has nested array
+          incompletePayments = incompleteData.incomplete_payments;
+        } else if (incompleteData.payments && Array.isArray(incompleteData.payments)) {
+          // Response has payments array
+          incompletePayments = incompleteData.payments;
+        }
+        
+        console.log(`Found ${incompletePayments.length} incomplete payment(s)`);
+        
+        // Cancel any incomplete payments for this user
+        for (const payment of incompletePayments) {
+          if (payment.user_uid === order.user_uid && !payment.status?.cancelled) {
+            console.log('🗑️ Auto-cancelling incomplete payment:', payment.identifier);
+            
+            try {
+              await fetch(
+                `${piPlatformUrl}/v2/payments/${payment.identifier}/cancel`,
+                {
+                  method: 'POST',
+                  headers: { 
+                    'Authorization': `Key ${env.PI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
+              console.log('✅ Cancelled:', payment.identifier);
+            } catch (cancelError) {
+              console.warn('⚠️ Failed to cancel payment:', payment.identifier, cancelError.message);
+              // Continue anyway - we'll try to create new payment
             }
-          );
+          }
         }
       }
+    } catch (incompleteError) {
+      console.warn('⚠️ Could not check incomplete payments:', incompleteError.message);
+      // Continue anyway - this is a best-effort cleanup
     }
 
     // STEP 1: Create U2A Payment on Pi Platform
