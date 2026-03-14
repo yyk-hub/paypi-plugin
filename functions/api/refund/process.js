@@ -14,9 +14,12 @@
  * platform controls the refund execution.
  */
 
-// CRITICAL: Import the initialized Horizon (with fetch adapter)
-import { Horizon } from '../../../lib/stellar-init.js';
-import { Keypair, TransactionBuilder, Operation, Asset, Networks, Memo } from '@stellar/stellar-sdk';
+import { Keypair, TransactionBuilder, Operation, Asset, Horizon, Memo } from '@stellar/stellar-sdk';
+import fetchAdapter from '@vespaiach/axios-fetch-adapter';
+
+// ✅ CRITICAL: Override axios to use fetch (required for Cloudflare Workers)
+Horizon.AxiosClient.defaults.adapter = fetchAdapter;
+
 import { calculateCreditCost } from '../../../lib/credits-pure-math.js';
 import { 
   checkIdempotency, 
@@ -88,17 +91,13 @@ export async function onRequestPost(context) {
 
     const isTestnet = env.PI_NETWORK === 'testnet';
     
-    // CRITICAL: Different URLs for Platform API vs Horizon API
-    // Platform API = /v2/payments endpoint (create payments, users, etc.)
-    // Horizon API = Stellar blockchain (submit transactions)
-    
-    const piPlatformUrl = isTestnet 
-      ? 'https://api.minepi.com'  // Platform API (same for both!)
-      : 'https://api.minepi.com'; // Platform API
+    // CRITICAL: Use Pi Platform API for /v2/payments
+    const piPlatformUrl = 'https://api.minepi.com';  // Same for both testnet/mainnet
 
+    // Use Stellar Horizon API for blockchain transactions
     const stellarHorizonUrl = isTestnet
-      ? 'https://api.testnet.minepi.com'  // Testnet Horizon
-      : 'https://api.mainnet.minepi.com'; // Mainnet Horizon
+      ? 'https://api.testnet.minepi.com'
+      : 'https://api.mainnet.minepi.com';
 
     // STEP 1: Create U2A Payment on Pi Platform
     console.log('📥 Step 1: Creating U2A payment on Pi Platform...');
@@ -132,7 +131,7 @@ export async function onRequestPost(context) {
 
     const paymentData = await createResponse.json();
     const paymentIdentifier = paymentData.identifier;
-    const recipientAddress = paymentData.to_address;  // ← Pi provides this!
+    const recipientAddress = paymentData.to_address;  // ← Pi provides wallet address!
 
     console.log('✅ U2A payment created:', paymentIdentifier);
     console.log('✅ Recipient address:', recipientAddress);
@@ -159,7 +158,7 @@ export async function onRequestPost(context) {
       networkPassphrase: networkPassphrase
     })
       .addOperation(Operation.payment({
-        destination: recipientAddress,  // ← Use address from Pi!
+        destination: recipientAddress,  // ← Use address from Pi API!
         asset: Asset.native(),
         amount: amount.toString()
       }))
@@ -207,11 +206,9 @@ export async function onRequestPost(context) {
       UPDATE paypi_orders
       SET 
         has_refund = 1, 
-        refunded_at = unixepoch(),
-        refund_payment_id = ?,
-        refund_txid = ?
+        refunded_at = unixepoch()
       WHERE order_id = ?
-    `).bind(paymentIdentifier, txid, order_id).run();
+    `).bind(order_id).run();
 
     // STEP 8: Return Credits to Merchant
     const creditsToRefund = calculateCreditCost(amount);
