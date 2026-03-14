@@ -99,6 +99,35 @@ export async function onRequestPost(context) {
       ? 'https://api.testnet.minepi.com'
       : 'https://api.mainnet.minepi.com';
 
+    // STEP 0: Check for incomplete payments and cancel them
+    console.log('🔍 Checking for incomplete payments...');
+    
+    const incompleteRes = await fetch(
+      'https://api.minepi.com/v2/payments/incomplete_server_payments',
+      {
+        headers: { 'Authorization': `Key ${env.PI_API_KEY}` }
+      }
+    );
+    
+    if (incompleteRes.ok) {
+      const incomplete = await incompleteRes.json();
+      
+      // Cancel any incomplete payments for this user
+      for (const payment of incomplete) {
+        if (payment.user_uid === order.user_uid && !payment.status.cancelled) {
+          console.log('🗑️ Auto-cancelling incomplete payment:', payment.identifier);
+          
+          await fetch(
+            `https://api.minepi.com/v2/payments/${payment.identifier}/cancel`,
+            {
+              method: 'POST',
+              headers: { 'Authorization': `Key ${env.PI_API_KEY}` }
+            }
+          );
+        }
+      }
+    }
+
     // STEP 1: Create U2A Payment on Pi Platform
     console.log('📥 Step 1: Creating U2A payment on Pi Platform...');
 
