@@ -1,9 +1,6 @@
 // functions/api/refund/process.js
 /**
- * Process Refund (CEO Pattern - SMART COMPLETION)
- * 
- * Smart handling: If incomplete payment exists, complete it instead of canceling
- * This ensures users get their refunds even if previous attempt failed
+ * DIAGNOSTIC VERSION - Find exact line causing "invalid encoded string"
  */
 
 import { Keypair, TransactionBuilder, Operation, Asset, Horizon, Memo } from '@stellar/stellar-sdk';
@@ -12,7 +9,6 @@ import fetchAdapter from '@vespaiach/axios-fetch-adapter';
 Horizon.AxiosClient.defaults.adapter = fetchAdapter;
 
 import { calculateCreditCost } from '../../../lib/credits-pure-math.js';
-import { checkIdempotency, storeIdempotency } from '../../../lib/idempotency.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -25,10 +21,11 @@ export async function onRequestPost(context) {
 
   try {
     const { order_id, amount, reason } = await request.json();
-    const idempotencyKey = request.headers.get('Idempotency-Key');
 
-    console.log('🔄 Processing refund:', { order_id, amount });
+    console.log('🔄 DIAGNOSTIC MODE - Finding error location');
+    console.log('Order:', order_id, 'Amount:', amount);
 
+    // Get order
     const order = await env.DB.prepare(
       'SELECT * FROM paypi_orders WHERE order_id = ?'
     ).bind(order_id).first();
@@ -38,10 +35,7 @@ export async function onRequestPost(context) {
     }
 
     if (order.has_refund) {
-      return Response.json({
-        success: true,
-        message: 'Order already refunded'
-      }, { headers: corsHeaders });
+      return Response.json({ success: true, message: 'Already refunded' }, { headers: corsHeaders });
     }
 
     const isTestnet = env.PI_NETWORK === 'testnet';
@@ -50,204 +44,201 @@ export async function onRequestPost(context) {
       ? 'https://api.testnet.minepi.com'
       : 'https://api.mainnet.minepi.com';
 
-    let paymentIdentifier;
-    let recipientAddress;
+    // Create payment
+    console.log('📥 Creating payment...');
 
-    // STEP 0: Check for incomplete payments
-    console.log('🔍 Checking for incomplete payments...');
+    const paymentBody = {
+      payment: {
+        amount: parseFloat(amount),
+        memo: reason || `Refund for ${order_id}`,
+        metadata: { order_id, type: 'refund' },
+        uid: order.user_uid
+      }
+    };
+
+    const createResponse = await fetch(`${piPlatformUrl}/v2/payments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${env.PI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(paymentBody)
+    });
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      throw new Error(`Create failed: ${errorText}`);
+    }
+
+    const paymentData = await createResponse.json();
+    const paymentIdentifier = paymentData.identifier;
+    const recipientAddress = paymentData.to_address;
+
+    console.log('✅ Payment created');
+    console.log('   ID:', paymentIdentifier);
+    console.log('   To:', recipientAddress);
+
+    // TEST 1: Validate recipient address
+    console.log('🧪 TEST 1: Validating recipient address...');
+    console.log('   Type:', typeof recipientAddress);
+    console.log('   Length:', recipientAddress?.length);
+    console.log('   First char:', recipientAddress?.[0]);
+    
+    if (!recipientAddress || typeof recipientAddress !== 'string') {
+      throw new Error('Invalid recipient address from Pi API');
+    }
+    console.log('✅ Recipient address valid');
+
+    // TEST 2: Validate APP_WALLET_SECRET
+    console.log('🧪 TEST 2: Validating APP_WALLET_SECRET...');
+    console.log('   Has secret:', !!env.APP_WALLET_SECRET);
+    console.log('   Secret type:', typeof env.APP_WALLET_SECRET);
+    console.log('   Secret length:', env.APP_WALLET_SECRET?.length);
+    console.log('   First char:', env.APP_WALLET_SECRET?.[0]);
+    
+    if (!env.APP_WALLET_SECRET || typeof env.APP_WALLET_SECRET !== 'string') {
+      throw new Error('APP_WALLET_SECRET is missing or invalid');
+    }
+    
+    if (!env.APP_WALLET_SECRET.startsWith('S')) {
+      throw new Error(`APP_WALLET_SECRET must start with 'S', got: ${env.APP_WALLET_SECRET[0]}`);
+    }
+    console.log('✅ APP_WALLET_SECRET format looks valid');
+
+    // TEST 3: Create Keypair
+    console.log('🧪 TEST 3: Creating Keypair from secret...');
+    
+    let sourceKeypair;
+    try {
+      sourceKeypair = Keypair.fromSecret(env.APP_WALLET_SECRET);
+      console.log('✅ Keypair created successfully');
+      console.log('   Public key:', sourceKeypair.publicKey());
+    } catch (keypairError) {
+      console.error('❌ Keypair creation failed!');
+      throw new Error(`Failed to create Keypair: ${keypairError.message}. Your APP_WALLET_SECRET may be invalid.`);
+    }
+
+    // TEST 4: Create Horizon Server
+    console.log('🧪 TEST 4: Creating Horizon server...');
+    
+    let server;
+    try {
+      server = new Horizon.Server(stellarHorizonUrl);
+      console.log('✅ Horizon server created');
+    } catch (serverError) {
+      throw new Error(`Failed to create Horizon server: ${serverError.message}`);
+    }
+
+    // TEST 5: Load account
+    console.log('🧪 TEST 5: Loading account from Horizon...');
+    
+    let account;
+    try {
+      account = await server.loadAccount(sourceKeypair.publicKey());
+      console.log('✅ Account loaded');
+    } catch (loadError) {
+      throw new Error(`Failed to load account: ${loadError.message}`);
+    }
+
+    // TEST 6: Get base fee
+    console.log('🧪 TEST 6: Getting base fee...');
+    
+    let baseFee;
+    try {
+      baseFee = await server.fetchBaseFee();
+      console.log('✅ Base fee:', baseFee);
+    } catch (feeError) {
+      throw new Error(`Failed to get base fee: ${feeError.message}`);
+    }
+
+    // TEST 7: Build transaction
+    console.log('🧪 TEST 7: Building transaction...');
+    console.log('   Destination:', recipientAddress);
+    console.log('   Amount:', amount.toString());
+    console.log('   Memo:', paymentIdentifier);
+    
+    let transaction;
+    try {
+      transaction = new TransactionBuilder(account, {
+        fee: baseFee.toString(),
+        networkPassphrase: isTestnet ? 'Pi Testnet' : 'Pi Network'
+      })
+        .addOperation(Operation.payment({
+          destination: recipientAddress,
+          asset: Asset.native(),
+          amount: amount.toString()
+        }))
+        .addMemo(Memo.text(paymentIdentifier))
+        .setTimeout(180)
+        .build();
+      
+      console.log('✅ Transaction built successfully');
+    } catch (buildError) {
+      console.error('❌ Transaction build failed!');
+      console.error('   Error:', buildError.message);
+      console.error('   Stack:', buildError.stack);
+      throw new Error(`Transaction build failed: ${buildError.message}`);
+    }
+
+    // TEST 8: Sign transaction
+    console.log('🧪 TEST 8: Signing transaction...');
     
     try {
-      const incompleteRes = await fetch(
-        `${piPlatformUrl}/v2/payments/incomplete_server_payments`,
-        { headers: { 'Authorization': `Key ${env.PI_API_KEY}` } }
-      );
-      
-      if (incompleteRes.ok) {
-        const incompleteData = await incompleteRes.json();
-        let incompletePayments = Array.isArray(incompleteData) 
-          ? incompleteData 
-          : (incompleteData.incomplete_payments || incompleteData.payments || []);
-        
-        // Find incomplete payment for this user
-        const existingPayment = incompletePayments.find(
-          p => p.user_uid === order.user_uid && !p.status?.cancelled
-        );
-        
-        if (existingPayment) {
-          console.log('🔄 Found incomplete payment - will complete it!');
-          console.log('   Payment ID:', existingPayment.identifier);
-          console.log('   To Address:', existingPayment.to_address);
-          console.log('   Amount:', existingPayment.amount);
-          
-          // Use existing payment instead of creating new one
-          paymentIdentifier = existingPayment.identifier;
-          recipientAddress = existingPayment.to_address;
-          
-          console.log('✅ Reusing incomplete payment');
-        }
-      }
-    } catch (err) {
-      console.warn('⚠️ Could not check incomplete:', err.message);
+      transaction.sign(sourceKeypair);
+      console.log('✅ Transaction signed');
+    } catch (signError) {
+      throw new Error(`Signing failed: ${signError.message}`);
     }
 
-    // STEP 1: Create new payment ONLY if no incomplete payment found
-    if (!paymentIdentifier) {
-      console.log('📥 Creating new U2A payment...');
+    // All tests passed!
+    console.log('🎉 ALL TESTS PASSED - Proceeding with submission...');
 
-      const paymentBody = {
-        payment: {
-          amount: parseFloat(amount),
-          memo: reason || `Refund for order ${order_id}`,
-          metadata: {
-            order_id: order_id,
-            type: 'refund',
-            original_amount: order.total_amt
-          },
-          uid: order.user_uid
-        }
-      };
-
-      const createResponse = await fetch(`${piPlatformUrl}/v2/payments`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${env.PI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(paymentBody)
-      });
-
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text();
-        throw new Error(`Failed to create payment: ${errorText}`);
-      }
-
-      const paymentData = await createResponse.json();
-      paymentIdentifier = paymentData.identifier;
-      recipientAddress = paymentData.to_address;
-
-      console.log('✅ New payment created:', paymentIdentifier);
-    }
-
-    console.log('📍 Payment ID:', paymentIdentifier);
-    console.log('📍 Recipient:', recipientAddress);
-
-    // STEP 2: Setup Stellar Connection
-    console.log('🔗 Setting up Stellar connection...');
-    
-    const networkPassphrase = isTestnet ? 'Pi Testnet' : 'Pi Network';
-    const server = new Horizon.Server(stellarHorizonUrl);
-    const sourceKeypair = Keypair.fromSecret(env.APP_WALLET_SECRET);
-
-    // STEP 3: Build and Submit Transaction
-    console.log('💳 Building Stellar transaction...');
-
-    const account = await server.loadAccount(sourceKeypair.publicKey());
-    const baseFee = await server.fetchBaseFee();
-
-    const transaction = new TransactionBuilder(account, {
-      fee: baseFee.toString(),
-      networkPassphrase: networkPassphrase
-    })
-      .addOperation(Operation.payment({
-        destination: recipientAddress,
-        asset: Asset.native(),
-        amount: amount.toString()
-      }))
-      .addMemo(Memo.text(paymentIdentifier))
-      .setTimeout(180)
-      .build();
-
-    transaction.sign(sourceKeypair);
-    console.log('✅ Transaction signed');
-
-    console.log('📤 Submitting to Stellar...');
+    // Submit transaction
     const submitResult = await server.submitTransaction(transaction);
     const txid = submitResult.hash;
     
     console.log('✅ Transaction submitted:', txid);
 
-    // STEP 4: Complete Payment on Pi Platform
-    console.log('✔️ Completing payment on Pi...');
+    // Complete payment
+    await fetch(`${piPlatformUrl}/v2/payments/${paymentIdentifier}/complete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${env.PI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ txid })
+    });
 
-    const completeResponse = await fetch(
-      `${piPlatformUrl}/v2/payments/${paymentIdentifier}/complete`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${env.PI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ txid })
-      }
-    );
-
-    if (!completeResponse.ok) {
-      const completeError = await completeResponse.text();
-      console.warn('⚠️ Complete warning:', completeError);
-    } else {
-      console.log('✅ Payment completed on Pi');
-    }
-
-    // STEP 5: Update Database
-    console.log('💾 Updating database...');
-
+    // Update database
     await env.DB.prepare(`
-      UPDATE paypi_orders
-      SET has_refund = 1, refunded_at = unixepoch()
+      UPDATE paypi_orders SET has_refund = 1, refunded_at = unixepoch()
       WHERE order_id = ?
     `).bind(order_id).run();
 
-    // STEP 6: Return Credits
     const creditsToRefund = calculateCreditCost(amount);
     
     await env.DB.prepare(`
-      UPDATE merchants
-      SET credit_balance = credit_balance + ?
+      UPDATE merchants SET credit_balance = credit_balance + ?
       WHERE merchant_id = ?
     `).bind(creditsToRefund, order.merchant_id).run();
 
-    await env.DB.prepare(`
-      INSERT INTO credit_transactions (
-        tx_id, merchant_id, type, amount, pi_amount,
-        balance_after, description, created_at
-      )
-      SELECT ?, ?, 'refund', ?, ?, credit_balance, ?, unixepoch()
-      FROM merchants WHERE merchant_id = ?
-    `).bind(
-      `REFUND_${Date.now()}`,
-      order.merchant_id,
-      creditsToRefund,
-      amount,
-      `Refund completed for ${order_id}`,
-      order.merchant_id
-    ).run();
-
-    console.log('✅ Credits returned:', creditsToRefund);
     console.log('🎉 Refund completed successfully!');
 
-    const response = {
+    return Response.json({
       success: true,
-      order_id: order_id,
       payment_identifier: paymentIdentifier,
       txid: txid,
-      amount: amount,
       credits_refunded: creditsToRefund,
-      recipient_address: recipientAddress,
       message: 'Refund completed successfully!'
-    };
-
-    if (idempotencyKey) {
-      await storeIdempotency(env, idempotencyKey, order.merchant_id, 'refund', response);
-    }
-
-    return Response.json(response, { headers: corsHeaders });
+    }, { headers: corsHeaders });
 
   } catch (error) {
-    console.error('❌ Refund error:', error);
-    console.error('Stack:', error.stack);
+    console.error('❌ ERROR AT:', error.message);
+    console.error('❌ Stack:', error.stack);
     
     return Response.json({
-      error: error.message
+      error: error.message,
+      stack: error.stack
     }, { 
       status: 500, 
       headers: corsHeaders 
