@@ -1,14 +1,8 @@
 // functions/api/refund/process.js
 /**
- * Process Refund (CEO Pattern - U2A + A2U Hybrid)
+ * Process Refund (CEO Pattern - DEBUG VERSION)
  * 
- * Flow (completes in ~5 seconds):
- * 1. Auto-cancel any incomplete payments
- * 2. Create U2A payment on Pi Network (user gets notification)
- * 3. Build Stellar transaction (A2U - platform sends π)
- * 4. Sign and submit to Stellar network
- * 5. Complete payment on Pi Platform
- * 6. Update database and return credits
+ * Added extensive logging to diagnose "invalid encoded string" issue
  */
 
 import { Keypair, TransactionBuilder, Operation, Asset, Horizon, Memo } from '@stellar/stellar-sdk';
@@ -34,15 +28,12 @@ export async function onRequestPost(context) {
 
   try {
     const { order_id, amount, reason } = await request.json();
-
-    // Get idempotency key from header
     const idempotencyKey = request.headers.get('Idempotency-Key');
 
-    console.log('🔄 Processing refund (CEO pattern):', { 
+    console.log('🔄 Processing refund (CEO pattern DEBUG):', { 
       order_id, 
       amount, 
-      reason, 
-      has_idempotency: !!idempotencyKey 
+      reason 
     });
 
     // Get order details
@@ -56,107 +47,21 @@ export async function onRequestPost(context) {
       }, { status: 404, headers: corsHeaders });
     }
 
-    // Check for cached idempotent response
-    if (idempotencyKey) {
-      const cached = await checkIdempotency(env, idempotencyKey, order.merchant_id);
-      if (cached) {
-        console.log('✅ Returning cached response from idempotency check');
-        return Response.json(cached, { 
-          headers: { 
-            ...corsHeaders,
-            'X-Idempotency-Cached': 'true'
-          } 
-        });
-      }
-    }
+    console.log('📦 Order:', { user_uid: order.user_uid, has_refund: order.has_refund });
 
     // Check if already refunded
     if (order.has_refund) {
-      const response = {
+      return Response.json({
         success: true,
-        message: 'Order already refunded',
-        order_id,
-        amount
-      };
-
-      if (idempotencyKey) {
-        await storeIdempotency(env, idempotencyKey, order.merchant_id, 'refund', response);
-      }
-
-      return Response.json(response, { headers: corsHeaders });
+        message: 'Order already refunded'
+      }, { headers: corsHeaders });
     }
 
     const isTestnet = env.PI_NETWORK === 'testnet';
-    
-    // CRITICAL: Use Pi Platform API for /v2/payments
-    const piPlatformUrl = 'https://api.minepi.com';  // Same for both testnet/mainnet
+    const piPlatformUrl = 'https://api.minepi.com';
 
-    // Use Stellar Horizon API for blockchain transactions
-    const stellarHorizonUrl = isTestnet
-      ? 'https://api.testnet.minepi.com'
-      : 'https://api.mainnet.minepi.com';
-
-    // STEP 0: Check for incomplete payments and cancel them
-    console.log('🔍 Checking for incomplete payments...');
-    
-    try {
-      const incompleteRes = await fetch(
-        `${piPlatformUrl}/v2/payments/incomplete_server_payments`,
-        {
-          headers: { 'Authorization': `Key ${env.PI_API_KEY}` }
-        }
-      );
-      
-      if (incompleteRes.ok) {
-        const incompleteData = await incompleteRes.json();
-        
-        // Handle different response structures
-        let incompletePayments = [];
-        
-        if (Array.isArray(incompleteData)) {
-          // Response is directly an array
-          incompletePayments = incompleteData;
-        } else if (incompleteData.incomplete_payments && Array.isArray(incompleteData.incomplete_payments)) {
-          // Response has nested array
-          incompletePayments = incompleteData.incomplete_payments;
-        } else if (incompleteData.payments && Array.isArray(incompleteData.payments)) {
-          // Response has payments array
-          incompletePayments = incompleteData.payments;
-        }
-        
-        console.log(`Found ${incompletePayments.length} incomplete payment(s)`);
-        
-        // Cancel any incomplete payments for this user
-        for (const payment of incompletePayments) {
-          if (payment.user_uid === order.user_uid && !payment.status?.cancelled) {
-            console.log('🗑️ Auto-cancelling incomplete payment:', payment.identifier);
-            
-            try {
-              await fetch(
-                `${piPlatformUrl}/v2/payments/${payment.identifier}/cancel`,
-                {
-                  method: 'POST',
-                  headers: { 
-                    'Authorization': `Key ${env.PI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                  }
-                }
-              );
-              console.log('✅ Cancelled:', payment.identifier);
-            } catch (cancelError) {
-              console.warn('⚠️ Failed to cancel payment:', payment.identifier, cancelError.message);
-              // Continue anyway - we'll try to create new payment
-            }
-          }
-        }
-      }
-    } catch (incompleteError) {
-      console.warn('⚠️ Could not check incomplete payments:', incompleteError.message);
-      // Continue anyway - this is a best-effort cleanup
-    }
-
-    // STEP 1: Create U2A Payment on Pi Platform
-    console.log('📥 Step 1: Creating U2A payment on Pi Platform...');
+    // STEP 1: Create U2A Payment
+    console.log('📥 Step 1: Creating U2A payment...');
 
     const paymentBody = {
       payment: {
@@ -164,12 +69,13 @@ export async function onRequestPost(context) {
         memo: reason || `Refund for order ${order_id}`,
         metadata: {
           order_id: order_id,
-          type: 'refund',
-          original_amount: order.total_amt
+          type: 'refund'
         },
-        uid: order.user_uid  // User who will receive the refund
+        uid: order.user_uid
       }
     };
+
+    console.log('📤 Request:', JSON.stringify(paymentBody, null, 2));
 
     const createResponse = await fetch(`${piPlatformUrl}/v2/payments`, {
       method: 'POST',
@@ -180,151 +86,49 @@ export async function onRequestPost(context) {
       body: JSON.stringify(paymentBody)
     });
 
+    console.log('📬 Response status:', createResponse.status);
+
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      throw new Error(`Failed to create refund payment: ${errorText}`);
+      console.error('❌ Create failed:', errorText);
+      throw new Error(`Failed to create payment: ${errorText}`);
     }
 
     const paymentData = await createResponse.json();
+    
+    // CRITICAL: Log full response
+    console.log('💳 PAYMENT RESPONSE:', JSON.stringify(paymentData, null, 2));
+    
     const paymentIdentifier = paymentData.identifier;
-    const recipientAddress = paymentData.to_address;  // ← Pi provides wallet address!
+    const recipientAddress = paymentData.to_address;
 
-    console.log('✅ U2A payment created:', paymentIdentifier);
-    console.log('✅ Recipient address:', recipientAddress);
+    console.log('🔑 identifier:', paymentIdentifier);
+    console.log('🔑 to_address:', recipientAddress);
+    console.log('🔑 to_address type:', typeof recipientAddress);
+    console.log('🔑 to_address length:', recipientAddress?.length);
 
-    // STEP 2: Setup Stellar/Pi Blockchain Connection
-    console.log('🔗 Step 2: Setting up Stellar connection...');
-
-    // DEBUG check
-    console.log("Wallet secret exists:", !!env.APP_WALLET_SECRET);
-    
-    const networkPassphrase = isTestnet ? 'Pi Testnet' : 'Pi Network';
-
-    const server = new Horizon.Server(stellarHorizonUrl);
-    const sourceKeypair = Keypair.fromSecret(env.APP_WALLET_SECRET);
-    const sourcePublicKey = sourceKeypair.publicKey();
-
-    console.log('🔗 Loading account:', sourcePublicKey);
-
-    // STEP 3: Load Account and Build Transaction
-    const account = await server.loadAccount(sourcePublicKey);
-    const baseFee = await server.fetchBaseFee();
-
-    console.log('💳 Step 3: Building Stellar transaction...');
-
-    const transaction = new TransactionBuilder(account, {
-      fee: baseFee.toString(),
-      networkPassphrase: networkPassphrase
-    })
-      .addOperation(Operation.payment({
-        destination: recipientAddress,  // ← Use address from Pi API!
-        asset: Asset.native(),
-        amount: amount.toString()
-      }))
-      .addMemo(Memo.text(paymentIdentifier))
-      .setTimeout(180)
-      .build();
-
-    // STEP 4: Sign Transaction
-    transaction.sign(sourceKeypair);
-    console.log('✅ Transaction signed locally');
-
-    // STEP 5: Submit to Stellar Network
-    console.log('📤 Step 4: Submitting to Stellar network...');
-    
-    const submitResult = await server.submitTransaction(transaction);
-    const txid = submitResult.hash;
-    
-    console.log('✅ Transaction submitted:', txid);
-
-    // STEP 6: Complete Payment on Pi Platform
-    console.log('✔️ Step 5: Completing payment on Pi Platform...');
-
-    const completeResponse = await fetch(
-      `${piPlatformUrl}/v2/payments/${paymentIdentifier}/complete`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${env.PI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ txid })
-      }
-    );
-
-    if (!completeResponse.ok) {
-      console.warn('⚠️ Complete API warning:', await completeResponse.text());
-    } else {
-      console.log('✅ Payment completed on Pi Platform');
+    if (!recipientAddress) {
+      throw new Error('No to_address in response!');
     }
 
-    // STEP 7: Update Database
-    console.log('💾 Step 6: Updating database...');
+    console.log('✅ Payment created successfully');
 
-    await env.DB.prepare(`
-      UPDATE paypi_orders
-      SET 
-        has_refund = 1, 
-        refunded_at = unixepoch()
-      WHERE order_id = ?
-    `).bind(order_id).run();
-
-    // STEP 8: Return Credits to Merchant
-    const creditsToRefund = calculateCreditCost(amount);
-    
-    await env.DB.prepare(`
-      UPDATE merchants
-      SET credit_balance = credit_balance + ?
-      WHERE merchant_id = ?
-    `).bind(creditsToRefund, order.merchant_id).run();
-
-    // Log credit refund
-    await env.DB.prepare(`
-      INSERT INTO credit_transactions (
-        tx_id, merchant_id, type, amount, pi_amount,
-        balance_after, description, created_at
-      )
-      SELECT 
-        ?, ?, 'refund', ?, ?,
-        credit_balance, ?, unixepoch()
-      FROM merchants
-      WHERE merchant_id = ?
-    `).bind(
-      `REFUND_${Date.now()}`,
-      order.merchant_id,
-      creditsToRefund,
-      amount,
-      `Refund completed for ${order_id}`,
-      order.merchant_id
-    ).run();
-
-    console.log('✅ Credits returned to merchant:', creditsToRefund);
-    console.log('🎉 Refund completed successfully!');
-
-    // STEP 9: Prepare Response
-    const response = {
+    // Return success (skip Stellar transaction for debugging)
+    return Response.json({
       success: true,
-      order_id: order_id,
+      debug_mode: true,
       payment_identifier: paymentIdentifier,
-      txid: txid,
-      amount: amount,
-      credits_refunded: creditsToRefund,
-      recipient_address: recipientAddress,
-      message: 'Refund completed successfully!'
-    };
-
-    // Store idempotency
-    if (idempotencyKey) {
-      await storeIdempotency(env, idempotencyKey, order.merchant_id, 'refund', response);
-      console.log('✅ Stored idempotency key');
-    }
-
-    return Response.json(response, { headers: corsHeaders });
+      to_address: recipientAddress,
+      message: 'Debug mode - Payment created but not completed'
+    }, { headers: corsHeaders });
 
   } catch (error) {
-    console.error('❌ Refund error:', error);
+    console.error('❌ ERROR:', error);
+    console.error('❌ Stack:', error.stack);
+    
     return Response.json({
-      error: error.message
+      error: error.message,
+      stack: error.stack
     }, { 
       status: 500, 
       headers: corsHeaders 
