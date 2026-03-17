@@ -13,7 +13,6 @@
       color: #1e293b;
     }
 
-    /* Sidebar */
     .sidebar {
       position: fixed;
       left: 0;
@@ -35,12 +34,6 @@
       -webkit-text-fill-color: transparent;
     }
 
-    .logo-text {
-      font-size: 14px;
-      color: #94a3b8;
-      margin-bottom: 30px;
-    }
-
     .nav-item {
       padding: 12px 16px;
       margin-bottom: 5px;
@@ -52,19 +45,9 @@
       gap: 12px;
     }
 
-    .nav-item:hover {
-      background: rgba(255,255,255,0.1);
-    }
+    .nav-item:hover { background: rgba(255,255,255,0.1); }
+    .nav-item.active { background: linear-gradient(135deg, #667eea, #764ba2); }
 
-    .nav-item.active {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-    }
-
-    .nav-icon {
-      font-size: 20px;
-    }
-
-    /* Main Content */
     .main-content {
       margin-left: 250px;
       padding: 30px;
@@ -81,17 +64,6 @@
       align-items: center;
     }
 
-    .header-title {
-      font-size: 24px;
-      font-weight: 700;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 10px;
-    }
-
-    /* Stats Cards */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -118,34 +90,14 @@
       font-size: 32px;
       font-weight: 700;
       color: #1e293b;
-      margin-bottom: 8px;
     }
 
-    .stat-change {
-      font-size: 13px;
-      color: #10b981;
-    }
-
-    .stat-change.negative {
-      color: #ef4444;
-    }
-
-    /* Table */
     .card {
       background: white;
       padding: 24px;
       border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       margin-bottom: 20px;
-    }
-
-    .card-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
     }
 
     table {
@@ -170,11 +122,8 @@
       font-size: 14px;
     }
 
-    tr:hover {
-      background: #f8fafc;
-    }
+    tr:hover { background: #f8fafc; }
 
-    /* Buttons */
     .btn {
       padding: 10px 20px;
       border: none;
@@ -190,358 +139,341 @@
       color: white;
     }
 
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102,126,234,0.4);
-    }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
 
-    .btn-secondary {
-      background: #e2e8f0;
-      color: #475569;
-    }
-
-    .btn-sm {
-      padding: 6px 12px;
-      font-size: 12px;
-    }
-
-    /* Status Badge */
     .badge {
       padding: 4px 12px;
       border-radius: 12px;
       font-size: 11px;
       font-weight: 700;
-      text-transform: uppercase;
     }
 
-    .badge-success {
-      background: #d1fae5;
-      color: #065f46;
-    }
+    .badge-success { background: #d1fae5; color: #065f46; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
 
-    .badge-warning {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .badge-error {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    /* Modal */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 2000;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal.show {
-      display: flex;
-    }
-
-    .modal-content {
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      max-width: 500px;
-      width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .modal-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 20px;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: #475569;
-      margin-bottom: 8px;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 14px;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
-    /* Loading */
     .loading {
       text-align: center;
       padding: 40px;
       color: #64748b;
     }
 
-    .spinner {
-      border: 3px solid #f3f4f6;
-      border-top: 3px solid #667eea;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .section {
-      display: none;
-    }
-
-    .section.active {
-      display: block;
-    }
+    .section { display: none; }
+    .section.active { display: block; }
   </style>
 </head>
 <body>
 
-<!-- Sidebar -->
 <div class="sidebar">
   <div class="logo">PayPi</div>
-  <div class="logo-text">Admin Dashboard</div>
   
   <div class="nav-item active" onclick="showSection('overview')">
-    <span class="nav-icon">📊</span>
-    <span>Overview</span>
+    <span>📊</span> <span>Overview</span>
   </div>
   <div class="nav-item" onclick="showSection('orders')">
-    <span class="nav-icon">📦</span>
-    <span>Orders</span>
+    <span>📦</span> <span>Orders</span>
   </div>
   <div class="nav-item" onclick="showSection('merchants')">
-    <span class="nav-icon">🏪</span>
-    <span>Merchants</span>
-  </div>
-  <div class="nav-item" onclick="showSection('credits')">
-    <span class="nav-icon">💳</span>
-    <span>Credits</span>
+    <span>🏪</span> <span>Merchants</span>
   </div>
   <div class="nav-item" onclick="showSection('refunds')">
-    <span class="nav-icon">💰</span>
-    <span>Refunds</span>
-  </div>
-  <div class="nav-item" onclick="showSection('settings')">
-    <span class="nav-icon">⚙️</span>
-    <span>Settings</span>
+    <span>💰</span> <span>Refunds</span>
   </div>
 </div>
 
-<!-- Main Content -->
 <div class="main-content">
-  <!-- Overview Section -->
+  <!-- Overview -->
   <div id="overview" class="section active">
     <div class="header">
-      <div class="header-title">📊 Overview</div>
-      <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" onclick="refreshData()">🔄 Refresh</button>
-        <button class="btn btn-primary btn-sm" onclick="showModal('cleanup')">🧹 Cleanup</button>
-      </div>
+      <h1>📊 Dashboard Overview</h1>
+      <button class="btn btn-primary btn-sm" onclick="loadStats()">🔄 Refresh</button>
     </div>
 
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">Total Orders</div>
-        <div class="stat-value" id="totalOrders">0</div>
-        <div class="stat-change" id="ordersChange">+0% from last month</div>
+        <div class="stat-value" id="totalOrders">-</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Total Volume</div>
-        <div class="stat-value" id="totalVolume">0π</div>
-        <div class="stat-change" id="volumeChange">+0% from last month</div>
+        <div class="stat-value" id="totalVolume">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Active Merchants</div>
-        <div class="stat-value" id="activeMerchants">0</div>
-        <div class="stat-change" id="merchantsChange">+0 this month</div>
+        <div class="stat-label">Merchants</div>
+        <div class="stat-value" id="totalMerchants">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Revenue (Credits)</div>
-        <div class="stat-value" id="totalRevenue">0</div>
-        <div class="stat-change" id="revenueChange">+0% from last month</div>
+        <div class="stat-label">Refunds</div>
+        <div class="stat-value" id="totalRefunds">-</div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Recent Orders
-        <button class="btn btn-secondary btn-sm" onclick="loadOrders()">View All</button>
-      </div>
-      <div id="recentOrdersTable">
-        <div class="loading">
-          <div class="spinner"></div>
-          Loading orders...
-        </div>
+      <h3>Recent Orders</h3>
+      <div id="recentOrders">
+        <div class="loading">Loading...</div>
       </div>
     </div>
   </div>
 
-  <!-- Orders Section -->
+  <!-- Orders -->
   <div id="orders" class="section">
     <div class="header">
-      <div class="header-title">📦 All Orders</div>
-      <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" onclick="exportOrders()">📥 Export</button>
-        <button class="btn btn-primary btn-sm" onclick="refreshOrders()">🔄 Refresh</button>
-      </div>
+      <h1>📦 All Orders</h1>
+      <button class="btn btn-primary btn-sm" onclick="loadOrders()">🔄 Refresh</button>
     </div>
-
     <div class="card">
-      <div id="ordersTable">Loading...</div>
+      <div id="ordersTable">
+        <div class="loading">Loading...</div>
+      </div>
     </div>
   </div>
 
-  <!-- Merchants Section -->
+  <!-- Merchants -->
   <div id="merchants" class="section">
     <div class="header">
-      <div class="header-title">🏪 Merchants</div>
-      <div class="header-actions">
-        <button class="btn btn-primary btn-sm" onclick="showModal('register')">+ Register Merchant</button>
+      <h1>🏪 Merchants</h1>
+      <button class="btn btn-primary btn-sm" onclick="loadMerchants()">🔄 Refresh</button>
+    </div>
+    <div class="card">
+      <div id="merchantsTable">
+        <div class="loading">Loading...</div>
       </div>
     </div>
-
-    <div class="card">
-      <div id="merchantsTable">Loading...</div>
-    </div>
   </div>
 
-  <!-- Other sections... -->
-  <div id="credits" class="section">
-    <div class="header">
-      <div class="header-title">💳 Credit Management</div>
-    </div>
-    <div class="card">
-      <p>Credit transactions and management coming soon...</p>
-    </div>
-  </div>
-
+  <!-- Refunds -->
   <div id="refunds" class="section">
     <div class="header">
-      <div class="header-title">💰 Refunds</div>
+      <h1>💰 Refunds</h1>
+      <button class="btn btn-primary btn-sm" onclick="loadRefunds()">🔄 Refresh</button>
     </div>
     <div class="card">
-      <p>Refund management coming soon...</p>
+      <div id="refundsTable">
+        <div class="loading">Loading...</div>
+      </div>
     </div>
-  </div>
-
-  <div id="settings" class="section">
-    <div class="header">
-      <div class="header-title">⚙️ Settings</div>
-    </div>
-    <div class="card">
-      <p>Settings coming soon...</p>
-    </div>
-  </div>
-</div>
-
-<!-- Modal -->
-<div class="modal" id="modal">
-  <div class="modal-content" id="modalContent">
-    <!-- Modal content loaded dynamically -->
   </div>
 </div>
 
 <script>
 const API = window.location.origin;
-let adminToken = localStorage.getItem('paypi_admin_token') || '';
+const ADMIN_TOKEN = 'your-admin-token-here'; // Change this!
 
-// Check auth
-if (!adminToken) {
-  adminToken = prompt('Enter Admin Token:');
-  if (adminToken) {
-    localStorage.setItem('paypi_admin_token', adminToken);
-  } else {
-    alert('Admin token required!');
+async function queryDB(sql) {
+  // Use D1 HTTP API (for demo - in production use proper admin API)
+  // This is a simplified example - you'd need proper admin endpoints
+  try {
+    const response = await fetch(`${API}/api/admin/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ADMIN_TOKEN}`
+      },
+      body: JSON.stringify({ sql })
+    });
+    
+    if (!response.ok) throw new Error('Query failed');
+    return await response.json();
+  } catch (error) {
+    console.error('DB query error:', error);
+    return { results: [] };
   }
 }
 
-function showSection(sectionId) {
-  // Hide all sections
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  // Show selected
-  document.getElementById(sectionId).classList.add('active');
-  
-  // Update nav
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  event.target.closest('.nav-item').classList.add('active');
-  
-  // Load section data
-  if (sectionId === 'orders') loadOrders();
-  if (sectionId === 'merchants') loadMerchants();
+async function loadStats() {
+  try {
+    // Get total orders
+    const ordersRes = await fetch(`${API}/api/admin/stats/orders`);
+    const orders = await ordersRes.json();
+    document.getElementById('totalOrders').textContent = orders.total || 0;
+    
+    // Get total volume
+    const volumeRes = await fetch(`${API}/api/admin/stats/volume`);
+    const volume = await volumeRes.json();
+    document.getElementById('totalVolume').textContent = `${volume.total || 0}π`;
+    
+    // Get merchants count
+    const merchantsRes = await fetch(`${API}/api/admin/stats/merchants`);
+    const merchants = await merchantsRes.json();
+    document.getElementById('totalMerchants').textContent = merchants.total || 0;
+    
+    // Get refunds count
+    const refundsRes = await fetch(`${API}/api/admin/stats/refunds`);
+    const refunds = await refundsRes.json();
+    document.getElementById('totalRefunds').textContent = refunds.total || 0;
+    
+    // Load recent orders
+    loadRecentOrders();
+  } catch (error) {
+    console.error('Stats load error:', error);
+  }
 }
 
-async function refreshData() {
-  // Load overview stats
-  console.log('Refreshing dashboard data...');
-  // TODO: Implement API calls
-}
-
-function showModal(type) {
-  const modal = document.getElementById('modal');
-  const content = document.getElementById('modalContent');
-  
-  if (type === 'cleanup') {
-    content.innerHTML = `
-      <div class="modal-title">🧹 Cleanup Idempotency Keys</div>
-      <p>Delete expired idempotency keys (older than 24 hours).</p>
-      <div class="form-group">
-        <button class="btn btn-primary" onclick="runCleanup()">Run Cleanup</button>
-        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      </div>
+async function loadRecentOrders() {
+  try {
+    const response = await fetch(`${API}/api/admin/orders?limit=10`);
+    const data = await response.json();
+    
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.orders.map(order => `
+            <tr>
+              <td>${order.order_id}</td>
+              <td>${order.total_amt}π</td>
+              <td><span class="badge badge-success">Paid</span></td>
+              <td>${new Date(order.created_at * 1000).toLocaleDateString()}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
     `;
+    
+    document.getElementById('recentOrders').innerHTML = html;
+  } catch (error) {
+    document.getElementById('recentOrders').innerHTML = '<p>Error loading orders</p>';
   }
-  
-  modal.classList.add('show');
-}
-
-function closeModal() {
-  document.getElementById('modal').classList.remove('show');
-}
-
-async function runCleanup() {
-  console.log('Running cleanup...');
-  // TODO: Call cleanup API
-  closeModal();
 }
 
 async function loadOrders() {
-  console.log('Loading orders...');
-  // TODO: Load orders from API
+  const table = document.getElementById('ordersTable');
+  table.innerHTML = '<div class="loading">Loading all orders...</div>';
+  
+  try {
+    const response = await fetch(`${API}/api/admin/orders`);
+    const data = await response.json();
+    
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Merchant</th>
+            <th>Amount</th>
+            <th>User</th>
+            <th>Refunded</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.orders.map(order => `
+            <tr>
+              <td>${order.order_id}</td>
+              <td>${order.merchant_id}</td>
+              <td>${order.total_amt}π</td>
+              <td>${order.user_uid.substring(0, 8)}...</td>
+              <td>${order.has_refund ? '✅' : '—'}</td>
+              <td>${new Date(order.created_at * 1000).toLocaleString()}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    
+    table.innerHTML = html;
+  } catch (error) {
+    table.innerHTML = '<p>Error loading orders</p>';
+  }
 }
 
 async function loadMerchants() {
-  console.log('Loading merchants...');
-  // TODO: Load merchants from API
+  const table = document.getElementById('merchantsTable');
+  table.innerHTML = '<div class="loading">Loading merchants...</div>';
+  
+  try {
+    const response = await fetch(`${API}/api/admin/merchants`);
+    const data = await response.json();
+    
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Merchant ID</th>
+            <th>Business Name</th>
+            <th>Credits</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.merchants.map(m => `
+            <tr>
+              <td>${m.merchant_id}</td>
+              <td>${m.business_name}</td>
+              <td>${m.credit_balance.toFixed(2)}</td>
+              <td>${new Date(m.created_at * 1000).toLocaleDateString()}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    
+    table.innerHTML = html;
+  } catch (error) {
+    table.innerHTML = '<p>Error loading merchants</p>';
+  }
+}
+
+async function loadRefunds() {
+  const table = document.getElementById('refundsTable');
+  table.innerHTML = '<div class="loading">Loading refunds...</div>';
+  
+  try {
+    const response = await fetch(`${API}/api/admin/refunds`);
+    const data = await response.json();
+    
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Amount</th>
+            <th>Refunded At</th>
+            <th>Credits Returned</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.refunds.map(r => `
+            <tr>
+              <td>${r.order_id}</td>
+              <td>${r.total_amt}π</td>
+              <td>${new Date(r.refunded_at * 1000).toLocaleString()}</td>
+              <td>${(r.total_amt * 0.02).toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    
+    table.innerHTML = html;
+  } catch (error) {
+    table.innerHTML = '<p>Error loading refunds</p>';
+  }
+}
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.target.closest('.nav-item').classList.add('active');
+  
+  if (id === 'orders') loadOrders();
+  if (id === 'merchants') loadMerchants();
+  if (id === 'refunds') loadRefunds();
+  if (id === 'overview') loadStats();
 }
 
 // Initialize
-console.log('PayPi Admin Dashboard loaded');
-refreshData();
+loadStats();
 </script>
 
 </body>
