@@ -1,6 +1,6 @@
 // functions/api/admin/refunds.js
 /**
- * Admin Refunds API
+ * Admin Refunds API - With Partial Refund Support
  * GET /api/admin/refunds
  */
 
@@ -16,15 +16,23 @@ export async function onRequestGet(context) {
   try {
     const { results } = await env.DB.prepare(`
       SELECT 
-        order_id,
-        merchant_id,
-        user_uid,
-        total_amt,
-        refunded_at,
-        created_at
-      FROM paypi_orders
-      WHERE has_refund = 1
-      ORDER BY refunded_at DESC
+        r.refund_id,
+        r.order_id,
+        r.merchant_id,
+        r.user_uid,
+        r.amount,
+        r.original_amount,
+        r.txid,
+        r.reason,
+        r.refund_status,
+        r.created_at,
+        r.completed_at,
+        o.total_amt,
+        o.total_refunded
+      FROM refunds r
+      INNER JOIN paypi_orders o ON r.order_id = o.order_id
+      WHERE r.refund_status = 'completed'
+      ORDER BY r.completed_at DESC
     `).all();
 
     return Response.json({

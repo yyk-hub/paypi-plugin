@@ -1,6 +1,12 @@
 // functions/api/refund/process.js
 /**
- * DIAGNOSTIC VERSION - Find exact line causing "invalid encoded string"
+ * Process Refund with Partial Refund Support
+ * 
+ * Supports:
+ * - Full refunds
+ * - Partial refunds (multiple per order)
+ * - Tracks all refunds in refunds table
+ * - Updates total_refunded on orders
  */
 
 import { Keypair, TransactionBuilder, Operation, Asset, Horizon, Memo } from '@stellar/stellar-sdk';
@@ -9,6 +15,7 @@ import fetchAdapter from '@vespaiach/axios-fetch-adapter';
 Horizon.AxiosClient.defaults.adapter = fetchAdapter;
 
 import { calculateCreditCost } from '../../../lib/credits-pure-math.js';
+import { checkIdempotency, storeIdempotency } from '../../../lib/idempotency.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -21,21 +28,61 @@ export async function onRequestPost(context) {
 
   try {
     const { order_id, amount, reason } = await request.json();
+    const idempotencyKey = request.headers.get('Idempotency-Key');
 
-    console.log('🔄 DIAGNOSTIC MODE - Finding error location');
-    console.log('Order:', order_id, 'Amount:', amount);
+    console.log('🔄 Processing refund:', { order_id, amount, reason });
 
-    // Get order
-    const order = await env.DB.prepare(
-      'SELECT * FROM paypi_orders WHERE order_id = ?'
-    ).bind(order_id).first();
+    // Get order details
+    const order = await env.DB.prepare(`
+      SELECT * FROM paypi_orders WHERE order_id = ?
+    `).bind(order_id).first();
 
     if (!order) {
-      return Response.json({ error: 'Order not found' }, { status: 404, headers: corsHeaders });
+      return Response.json({
+        error: 'Order not found'
+      }, { status: 404, headers: corsHeaders });
     }
 
-    if (order.has_refund) {
-      return Response.json({ success: true, message: 'Already refunded' }, { headers: corsHeaders });
+    console.log('📦 Order:', {
+      order_id: order.order_id,
+      total_amt: order.total_amt,
+      total_refunded: order.total_refunded || 0,
+      remaining: order.total_amt - (order.total_refunded || 0)
+    });
+
+    // Check idempotency cache
+    if (idempotencyKey) {
+      const cached = await checkIdempotency(env, idempotencyKey, order.merchant_id);
+      if (cached) {
+        console.log('✅ Returning cached response');
+        return Response.json(cached, {
+          headers: { ...corsHeaders, 'X-Idempotency-Cached': 'true' }
+        });
+      }
+    }
+
+    // Calculate remaining refundable amount
+    const totalRefunded = order.total_refunded || 0;
+    const remainingAmount = order.total_amt - totalRefunded;
+
+    console.log('💰 Refund amounts:', {
+      total_order: order.total_amt,
+      already_refunded: totalRefunded,
+      remaining: remainingAmount,
+      requested: amount
+    });
+
+    // Validate refund amount
+    if (amount <= 0) {
+      return Response.json({
+        error: 'Refund amount must be positive'
+      }, { status: 400, headers: corsHeaders });
+    }
+
+    if (amount > remainingAmount) {
+      return Response.json({
+        error: `Cannot refund ${amount}π. Only ${remainingAmount.toFixed(7)}π remaining (original: ${order.total_amt}π, already refunded: ${totalRefunded.toFixed(7)}π)`
+      }, { status: 400, headers: corsHeaders });
     }
 
     const isTestnet = env.PI_NETWORK === 'testnet';
@@ -44,204 +91,253 @@ export async function onRequestPost(context) {
       ? 'https://api.testnet.minepi.com'
       : 'https://api.mainnet.minepi.com';
 
-    // Create payment
-    console.log('📥 Creating payment...');
+    let paymentIdentifier;
+    let recipientAddress;
 
-    const paymentBody = {
-      payment: {
-        amount: parseFloat(amount),
-        memo: reason || `Refund for ${order_id}`,
-        metadata: { order_id, type: 'refund' },
-        uid: order.user_uid
+    // STEP 0: Check for incomplete payments
+    console.log('🔍 Checking for incomplete payments...');
+
+    try {
+      const incompleteRes = await fetch(
+        `${piPlatformUrl}/v2/payments/incomplete_server_payments`,
+        { headers: { 'Authorization': `Key ${env.PI_API_KEY}` } }
+      );
+
+      if (incompleteRes.ok) {
+        const incompleteData = await incompleteRes.json();
+        let incompletePayments = Array.isArray(incompleteData)
+          ? incompleteData
+          : (incompleteData.incomplete_payments || incompleteData.payments || []);
+
+        const existingPayment = incompletePayments.find(
+          p => p.user_uid === order.user_uid && !p.status?.cancelled
+        );
+
+        if (existingPayment) {
+          console.log('🔄 Found incomplete payment - will complete it!');
+          paymentIdentifier = existingPayment.identifier;
+          recipientAddress = existingPayment.to_address;
+          console.log('✅ Reusing incomplete payment');
+        }
       }
-    };
-
-    const createResponse = await fetch(`${piPlatformUrl}/v2/payments`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${env.PI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(paymentBody)
-    });
-
-    if (!createResponse.ok) {
-      const errorText = await createResponse.text();
-      throw new Error(`Create failed: ${errorText}`);
+    } catch (err) {
+      console.warn('⚠️ Could not check incomplete:', err.message);
     }
 
-    const paymentData = await createResponse.json();
-    const paymentIdentifier = paymentData.identifier;
-    const recipientAddress = paymentData.to_address;
+    // Generate refund ID
+    const refundId = `REF_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    console.log('✅ Payment created');
-    console.log('   ID:', paymentIdentifier);
-    console.log('   To:', recipientAddress);
+    // STEP 1: Create new payment ONLY if no incomplete payment found
+    if (!paymentIdentifier) {
+      console.log('📥 Creating new U2A payment...');
 
-    // TEST 1: Validate recipient address
-    console.log('🧪 TEST 1: Validating recipient address...');
-    console.log('   Type:', typeof recipientAddress);
-    console.log('   Length:', recipientAddress?.length);
-    console.log('   First char:', recipientAddress?.[0]);
-    
-    if (!recipientAddress || typeof recipientAddress !== 'string') {
-      throw new Error('Invalid recipient address from Pi API');
-    }
-    console.log('✅ Recipient address valid');
+      const paymentBody = {
+        payment: {
+          amount: parseFloat(amount),
+          memo: reason || `Refund for order ${order_id}`,
+          metadata: {
+            order_id: order_id,
+            refund_id: refundId,
+            type: 'refund',
+            original_amount: order.total_amt,
+            refund_type: amount >= order.total_amt ? 'full' : 'partial'
+          },
+          uid: order.user_uid
+        }
+      };
 
-    // TEST 2: Validate APP_WALLET_SECRET
-    console.log('🧪 TEST 2: Validating APP_WALLET_SECRET...');
-    console.log('   Has secret:', !!env.APP_WALLET_SECRET);
-    console.log('   Secret type:', typeof env.APP_WALLET_SECRET);
-    console.log('   Secret length:', env.APP_WALLET_SECRET?.length);
-    console.log('   First char:', env.APP_WALLET_SECRET?.[0]);
-    
-    if (!env.APP_WALLET_SECRET || typeof env.APP_WALLET_SECRET !== 'string') {
-      throw new Error('APP_WALLET_SECRET is missing or invalid');
-    }
-    
-    if (!env.APP_WALLET_SECRET.startsWith('S')) {
-      throw new Error(`APP_WALLET_SECRET must start with 'S', got: ${env.APP_WALLET_SECRET[0]}`);
-    }
-    console.log('✅ APP_WALLET_SECRET format looks valid');
+      const createResponse = await fetch(`${piPlatformUrl}/v2/payments`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${env.PI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(paymentBody)
+      });
 
-    // TEST 3: Create Keypair
-    console.log('🧪 TEST 3: Creating Keypair from secret...');
-    
-    let sourceKeypair;
-    try {
-      sourceKeypair = Keypair.fromSecret(env.APP_WALLET_SECRET);
-      console.log('✅ Keypair created successfully');
-      console.log('   Public key:', sourceKeypair.publicKey());
-    } catch (keypairError) {
-      console.error('❌ Keypair creation failed!');
-      throw new Error(`Failed to create Keypair: ${keypairError.message}. Your APP_WALLET_SECRET may be invalid.`);
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Failed to create payment: ${errorText}`);
+      }
+
+      const paymentData = await createResponse.json();
+      paymentIdentifier = paymentData.identifier;
+      recipientAddress = paymentData.to_address;
+
+      console.log('✅ New payment created:', paymentIdentifier);
     }
 
-    // TEST 4: Create Horizon Server
-    console.log('🧪 TEST 4: Creating Horizon server...');
-    
-    let server;
-    try {
-      server = new Horizon.Server(stellarHorizonUrl);
-      console.log('✅ Horizon server created');
-    } catch (serverError) {
-      throw new Error(`Failed to create Horizon server: ${serverError.message}`);
-    }
+    console.log('📍 Payment ID:', paymentIdentifier);
+    console.log('📍 Recipient:', recipientAddress);
 
-    // TEST 5: Load account
-    console.log('🧪 TEST 5: Loading account from Horizon...');
-    
-    let account;
-    try {
-      account = await server.loadAccount(sourceKeypair.publicKey());
-      console.log('✅ Account loaded');
-    } catch (loadError) {
-      throw new Error(`Failed to load account: ${loadError.message}`);
-    }
+    // STEP 2: Create refund record
+    console.log('💾 Creating refund record...');
 
-    // TEST 6: Get base fee
-    console.log('🧪 TEST 6: Getting base fee...');
-    
-    let baseFee;
-    try {
-      baseFee = await server.fetchBaseFee();
-      console.log('✅ Base fee:', baseFee);
-    } catch (feeError) {
-      throw new Error(`Failed to get base fee: ${feeError.message}`);
-    }
+    await env.DB.prepare(`
+      INSERT INTO refunds (
+        refund_id, order_id, user_uid, merchant_id,
+        payment_identifier, recipient_address,
+        amount, original_amount,
+        memo, reason,
+        refund_status, created_at, initiated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing', unixepoch(), unixepoch())
+    `).bind(
+      refundId,
+      order_id,
+      order.user_uid,
+      order.merchant_id,
+      paymentIdentifier,
+      recipientAddress,
+      amount,
+      order.total_amt,
+      reason || `Refund for ${order_id}`,
+      reason,
+    ).run();
 
-    // TEST 7: Build transaction
-    console.log('🧪 TEST 7: Building transaction...');
-    console.log('   Destination:', recipientAddress);
-    console.log('   Amount:', amount.toString());
-    console.log('   Memo:', paymentIdentifier);
-    
-    let transaction;
-    try {
-      transaction = new TransactionBuilder(account, {
-        fee: baseFee.toString(),
-        networkPassphrase: isTestnet ? 'Pi Testnet' : 'Pi Network'
-      })
-        .addOperation(Operation.payment({
-          destination: recipientAddress,
-          asset: Asset.native(),
-          amount: amount.toString()
-        }))
-        .addMemo(Memo.text(paymentIdentifier))
-        .setTimeout(180)
-        .build();
-      
-      console.log('✅ Transaction built successfully');
-    } catch (buildError) {
-      console.error('❌ Transaction build failed!');
-      console.error('   Error:', buildError.message);
-      console.error('   Stack:', buildError.stack);
-      throw new Error(`Transaction build failed: ${buildError.message}`);
-    }
+    console.log('✅ Refund record created:', refundId);
 
-    // TEST 8: Sign transaction
-    console.log('🧪 TEST 8: Signing transaction...');
-    
-    try {
-      transaction.sign(sourceKeypair);
-      console.log('✅ Transaction signed');
-    } catch (signError) {
-      throw new Error(`Signing failed: ${signError.message}`);
-    }
+    // STEP 3: Setup Stellar Connection
+    console.log('🔗 Setting up Stellar connection...');
 
-    // All tests passed!
-    console.log('🎉 ALL TESTS PASSED - Proceeding with submission...');
+    const networkPassphrase = isTestnet ? 'Pi Testnet' : 'Pi Network';
+    const server = new Horizon.Server(stellarHorizonUrl);
+    const sourceKeypair = Keypair.fromSecret(env.APP_WALLET_SECRET);
 
-    // Submit transaction
+    // STEP 4: Build and Submit Transaction
+    console.log('💳 Building Stellar transaction...');
+
+    const account = await server.loadAccount(sourceKeypair.publicKey());
+    const baseFee = await server.fetchBaseFee();
+
+    const transaction = new TransactionBuilder(account, {
+      fee: baseFee.toString(),
+      networkPassphrase: networkPassphrase
+    })
+      .addOperation(Operation.payment({
+        destination: recipientAddress,
+        asset: Asset.native(),
+        amount: amount.toString()
+      }))
+      .addMemo(Memo.text(paymentIdentifier))
+      .setTimeout(180)
+      .build();
+
+    transaction.sign(sourceKeypair);
+    console.log('✅ Transaction signed');
+
+    console.log('📤 Submitting to Stellar...');
     const submitResult = await server.submitTransaction(transaction);
     const txid = submitResult.hash;
-    
+
     console.log('✅ Transaction submitted:', txid);
 
-    // Complete payment
-    await fetch(`${piPlatformUrl}/v2/payments/${paymentIdentifier}/complete`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${env.PI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ txid })
-    });
+    // STEP 5: Complete Payment on Pi Platform
+    console.log('✔️ Completing payment on Pi...');
 
-    // Update database
+    const completeResponse = await fetch(
+      `${piPlatformUrl}/v2/payments/${paymentIdentifier}/complete`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${env.PI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ txid })
+      }
+    );
+
+    if (!completeResponse.ok) {
+      const completeError = await completeResponse.text();
+      console.warn('⚠️ Complete warning:', completeError);
+    } else {
+      console.log('✅ Payment completed on Pi');
+    }
+
+    // STEP 6: Update refund record as completed
+    console.log('💾 Updating refund record...');
+
     await env.DB.prepare(`
-      UPDATE paypi_orders SET has_refund = 1, refunded_at = unixepoch()
+      UPDATE refunds
+      SET 
+        txid = ?,
+        refund_status = 'completed',
+        completed_at = unixepoch()
+      WHERE refund_id = ?
+    `).bind(txid, refundId).run();
+
+    // STEP 7: Update order total_refunded
+    const newTotalRefunded = totalRefunded + parseFloat(amount);
+
+    await env.DB.prepare(`
+      UPDATE paypi_orders
+      SET 
+        total_refunded = ?,
+        has_refund = 1,
+        refunded_at = COALESCE(refunded_at, unixepoch())
       WHERE order_id = ?
-    `).bind(order_id).run();
+    `).bind(newTotalRefunded, order_id).run();
 
+    console.log('✅ Order updated - total refunded:', newTotalRefunded);
+
+    // STEP 8: Return Credits
     const creditsToRefund = calculateCreditCost(amount);
-    
+
     await env.DB.prepare(`
-      UPDATE merchants SET credit_balance = credit_balance + ?
+      UPDATE merchants
+      SET credit_balance = credit_balance + ?
       WHERE merchant_id = ?
     `).bind(creditsToRefund, order.merchant_id).run();
 
+    // Log credit refund
+    await env.DB.prepare(`
+      INSERT INTO credit_transactions (
+        tx_id, merchant_id, type, amount, pi_amount,
+        balance_after, description, created_at
+      )
+      SELECT ?, ?, 'refund', ?, ?, credit_balance, ?, unixepoch()
+      FROM merchants WHERE merchant_id = ?
+    `).bind(
+      refundId,
+      order.merchant_id,
+      creditsToRefund,
+      amount,
+      `${amount >= order.total_amt ? 'Full' : 'Partial'} refund for ${order_id} (${amount}π of ${order.total_amt}π)`,
+      order.merchant_id
+    ).run();
+
+    console.log('✅ Credits returned:', creditsToRefund);
     console.log('🎉 Refund completed successfully!');
 
-    return Response.json({
+    const response = {
       success: true,
+      refund_id: refundId,
+      order_id: order_id,
       payment_identifier: paymentIdentifier,
       txid: txid,
+      amount: amount,
+      refund_type: amount >= order.total_amt ? 'full' : 'partial',
+      total_refunded: newTotalRefunded,
+      remaining_refundable: order.total_amt - newTotalRefunded,
       credits_refunded: creditsToRefund,
-      message: 'Refund completed successfully!'
-    }, { headers: corsHeaders });
+      recipient_address: recipientAddress,
+      message: `${amount >= order.total_amt ? 'Full' : 'Partial'} refund completed successfully!`
+    };
+
+    if (idempotencyKey) {
+      await storeIdempotency(env, idempotencyKey, order.merchant_id, 'refund', response);
+    }
+
+    return Response.json(response, { headers: corsHeaders });
 
   } catch (error) {
-    console.error('❌ ERROR AT:', error.message);
-    console.error('❌ Stack:', error.stack);
-    
+    console.error('❌ Refund error:', error);
+    console.error('Stack:', error.stack);
+
     return Response.json({
-      error: error.message,
-      stack: error.stack
-    }, { 
-      status: 500, 
-      headers: corsHeaders 
+      error: error.message
+    }, {
+      status: 500,
+      headers: corsHeaders
     });
   }
 }
