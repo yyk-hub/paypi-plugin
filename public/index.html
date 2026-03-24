@@ -3,335 +3,238 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PayPi - Accept Pi Payments in 5 Minutes | Payment Gateway for Pi Network</title>
-  <meta name="description" content="Non-custodial payment gateway for Pi Network. Accept Pi on your website in 5 minutes. 2% fee, open source, prepaid credit system.">
-  
+  <title>PayPi - Pi Network Payment Gateway</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.6;
-      color: #1a202c;
+      color: #1e293b;
     }
 
-    /* Hero Section - Blue gradient (NOT Pi's purple!) */
-    .hero {
-      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 100px 20px;
+      padding: 1rem 0;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 2rem;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      transition: opacity 0.3s;
+    }
+
+    .nav-links a:hover {
+      opacity: 0.8;
+    }
+
+    /* Hero Section */
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 120px 2rem 80px;
       text-align: center;
     }
 
     .hero h1 {
-      font-size: 48px;
-      font-weight: 800;
-      margin-bottom: 20px;
-      line-height: 1.2;
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      font-weight: 700;
     }
 
-    .hero .subtitle {
-      font-size: 20px;
-      margin-bottom: 10px;
+    .hero p {
+      font-size: 1.25rem;
+      margin-bottom: 2rem;
       opacity: 0.9;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .hero .disclaimer {
-      font-size: 13px;
-      opacity: 0.7;
-      margin-bottom: 40px;
-      font-style: italic;
     }
 
     .cta-buttons {
       display: flex;
-      gap: 20px;
+      gap: 1rem;
       justify-content: center;
       flex-wrap: wrap;
     }
 
     .btn {
-      padding: 16px 32px;
+      padding: 1rem 2rem;
       border-radius: 8px;
-      font-size: 18px;
-      font-weight: 600;
       text-decoration: none;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
       display: inline-block;
-      transition: all 0.2s;
     }
 
     .btn-primary {
       background: white;
-      color: #2563eb;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      color: #667eea;
     }
 
     .btn-secondary {
-      background: rgba(255,255,255,0.2);
+      background: transparent;
       color: white;
       border: 2px solid white;
     }
 
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.3);
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
     /* Features Section */
     .features {
-      padding: 80px 20px;
       max-width: 1200px;
-      margin: 0 auto;
+      margin: 80px auto;
+      padding: 0 2rem;
     }
 
     .features h2 {
       text-align: center;
-      font-size: 36px;
-      margin-bottom: 60px;
-      color: #1a202c;
+      font-size: 2.5rem;
+      margin-bottom: 3rem;
     }
 
-    .feature-grid {
+    .features-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 40px;
+      gap: 2rem;
     }
 
-    .feature {
-      text-align: center;
-      padding: 30px;
+    .feature-card {
+      padding: 2rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
 
     .feature-icon {
-      font-size: 48px;
-      margin-bottom: 20px;
+      font-size: 3rem;
+      margin-bottom: 1rem;
     }
 
-    .feature h3 {
-      font-size: 24px;
-      margin-bottom: 15px;
-      color: #1a202c;
-    }
-
-    .feature p {
-      color: #4a5568;
-      line-height: 1.8;
+    .feature-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: #667eea;
     }
 
     /* How It Works */
     .how-it-works {
-      background: #f7fafc;
-      padding: 80px 20px;
+      background: #f8fafc;
+      padding: 80px 2rem;
+    }
+
+    .how-it-works-content {
+      max-width: 1200px;
+      margin: 0 auto;
     }
 
     .how-it-works h2 {
       text-align: center;
-      font-size: 36px;
-      margin-bottom: 60px;
+      font-size: 2.5rem;
+      margin-bottom: 3rem;
     }
 
     .steps {
-      max-width: 800px;
-      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
     }
 
     .step {
-      display: flex;
-      gap: 30px;
-      margin-bottom: 50px;
-      align-items: start;
+      text-align: center;
     }
 
     .step-number {
-      background: #2563eb;
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
-      width: 50px;
-      height: 50px;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
+      line-height: 60px;
+      font-size: 1.5rem;
       font-weight: 700;
-      flex-shrink: 0;
+      margin-bottom: 1rem;
     }
 
-    .step-content h3 {
-      font-size: 22px;
-      margin-bottom: 10px;
+    .step h3 {
+      margin-bottom: 0.5rem;
     }
 
-    .step-content p {
-      color: #4a5568;
-    }
-
-    .step-content code {
-      background: #edf2f7;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 14px;
-      color: #2d3748;
-    }
-
-    /* Code Example */
-    .code-example {
-      background: #1a202c;
-      color: #e2e8f0;
-      padding: 80px 20px;
-    }
-
-    .code-example h2 {
-      text-align: center;
-      font-size: 36px;
-      margin-bottom: 40px;
-      color: white;
-    }
-
-    .code-block {
-      max-width: 800px;
-      margin: 0 auto;
-      background: #2d3748;
-      border-radius: 12px;
-      padding: 30px;
-      overflow-x: auto;
-    }
-
-    .code-block pre {
-      font-family: 'Monaco', 'Courier New', monospace;
-      font-size: 14px;
-      line-height: 1.8;
-    }
-
-    .code-comment { color: #68d391; }
-    .code-tag { color: #63b3ed; }
-    .code-attr { color: #f6ad55; }
-    .code-string { color: #f687b3; }
-
-    /* Stats */
-    .stats {
-      padding: 80px 20px;
-      text-align: center;
-    }
-
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minsize(200px, 1fr));
-      gap: 40px;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    .stat {
-      padding: 20px;
-    }
-
-    .stat-number {
-      font-size: 48px;
-      font-weight: 800;
-      color: #2563eb;
-      margin-bottom: 10px;
-    }
-
-    .stat-label {
-      font-size: 18px;
-      color: #4a5568;
-    }
-
-    /* Pricing */
-    .pricing {
-      background: #f7fafc;
-      padding: 80px 20px;
-    }
-
-    .pricing h2 {
-      text-align: center;
-      font-size: 36px;
-      margin-bottom: 20px;
-    }
-
-    .pricing-subtitle {
-      text-align: center;
-      font-size: 20px;
-      color: #4a5568;
-      margin-bottom: 60px;
-    }
-
-    .price-card {
-      max-width: 500px;
-      margin: 0 auto;
+    /* Payment Flow */
+    .payment-flow {
       background: white;
-      border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 80px 2rem;
     }
 
-    .price-card h3 {
-      font-size: 28px;
-      margin-bottom: 10px;
+    .payment-flow-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .payment-flow h2 {
       text-align: center;
-    }
-
-    .price {
-      font-size: 48px;
-      font-weight: 800;
-      color: #2563eb;
-      margin: 20px 0;
-      text-align: center;
-    }
-
-    .price-period {
-      font-size: 18px;
-      font-weight: normal;
-      color: #6b7280;
-    }
-
-    .price-features {
-      list-style: none;
-      margin: 30px 0;
-    }
-
-    .price-features li {
-      padding: 10px 0;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    .price-features li:before {
-      content: "✓ ";
-      color: #10b981;
-      font-weight: bold;
-      margin-right: 10px;
+      font-size: 2.5rem;
+      margin-bottom: 3rem;
     }
 
     /* CTA Section */
-    .final-cta {
-      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    .cta-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 100px 20px;
+      padding: 80px 2rem;
       text-align: center;
     }
 
-    .final-cta h2 {
-      font-size: 42px;
-      margin-bottom: 20px;
+    .cta-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
     }
 
-    .final-cta p {
-      font-size: 20px;
-      margin-bottom: 40px;
+    .cta-section p {
+      font-size: 1.25rem;
+      margin-bottom: 2rem;
       opacity: 0.9;
     }
 
     /* Footer */
-    footer {
-      background: #1a202c;
+    .footer {
+      background: #1e293b;
       color: white;
-      padding: 60px 20px 40px;
+      padding: 3rem 2rem;
     }
 
     .footer-content {
@@ -339,293 +242,278 @@
       margin: 0 auto;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 40px;
-      margin-bottom: 40px;
+      gap: 2rem;
     }
 
-    .footer-section h4 {
-      margin-bottom: 20px;
-      font-size: 18px;
+    .footer h3 {
+      margin-bottom: 1rem;
     }
 
-    .footer-section ul {
+    .footer ul {
       list-style: none;
     }
 
-    .footer-section ul li {
-      margin-bottom: 10px;
-    }
-
-    .footer-section a {
-      color: #9ca3af;
+    .footer a {
+      color: #94a3b8;
       text-decoration: none;
       transition: color 0.2s;
     }
 
-    .footer-section a:hover {
+    .footer a:hover {
       color: white;
     }
 
     .footer-bottom {
       text-align: center;
-      padding-top: 40px;
-      border-top: 1px solid #374151;
-      color: #9ca3af;
-      font-size: 14px;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid #334155;
+      color: #94a3b8;
     }
 
-    .footer-disclaimer {
-      font-size: 12px;
-      font-style: italic;
-      margin-top: 20px;
-      opacity: 0.7;
-    }
-
+    /* Responsive */
     @media (max-width: 768px) {
-      .hero h1 { font-size: 32px; }
-      .hero .subtitle { font-size: 18px; }
-      .features h2, .how-it-works h2 { font-size: 28px; }
-      .step { flex-direction: column; }
+      .hero h1 { font-size: 2rem; }
+      .hero p { font-size: 1rem; }
+      .features h2, .how-it-works h2, .cta-section h2 { font-size: 1.75rem; }
     }
   </style>
 </head>
 <body>
 
+<!-- Header -->
+<header class="header">
+  <nav class="nav">
+    <div class="logo">PayPi</div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="/docs.html">Docs</a></li>
+      <li><a href="/merchant-portal.html">Portal</a></li>
+      <li><a href="/test-payment-merchant.html">Simulator</a></li>
+      <li><a href="https://github.com/yyk-hub/paypi-plugin" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+    </ul>
+  </nav>
+</header>
+
 <!-- Hero Section -->
 <section class="hero">
-  <h1>Accept Pi Payments in 5 Minutes</h1>
-  <p class="subtitle">Payment Gateway for Pi Network. Non-custodial, prepaid credit system, 2% processing fee.</p>
-  <p class="disclaimer">PayPi is not affiliated with Pi Network. Compatible with Pi blockchain.</p>
+  <h1>Accept Pi Payments Instantly</h1>
+  <p>The easiest way to integrate Pi Network payments into your business</p>
   
   <div class="cta-buttons">
-    <a href="https://github.com/yyk-hub/paypi-plugin"
-       class="btn btn-primary"
-       target="_blank"
-       rel="noopener">
-      Get Started Free
+    <a href="/merchant-portal.html" class="btn btn-primary">
+      Merchant Portal →
     </a>
-    <a href="#how-it-works" class="btn btn-secondary">
-      Learn More
+    <a href="/docs.html" class="btn btn-secondary">
+      📚 Documentation
+    </a>
+    <a href="https://github.com/yyk-hub/paypi-plugin" 
+       class="btn btn-secondary"
+       target="_blank"
+       rel="noopener noreferrer">
+      ⭐ GitHub
     </a>
   </div>
 </section>
 
-<!-- Features -->
-<section class="features">
-  <h2>Why PayPi?</h2>
+<!-- Features Section -->
+<section class="features" id="features">
+  <h2>Why Choose PayPi?</h2>
   
-  <div class="feature-grid">
-    <div class="feature">
+  <div class="features-grid">
+    <div class="feature-card">
       <div class="feature-icon">⚡</div>
-      <h3>5-Minute Setup</h3>
-      <p>Deploy to Cloudflare Pages, add one script tag to your site. You're done.</p>
+      <h3>Instant Payments</h3>
+      <p>Accept Pi payments in real-time with instant settlement and confirmation.</p>
     </div>
-
-    <div class="feature">
+    
+    <div class="feature-card">
       <div class="feature-icon">🔒</div>
-      <h3>Non-Custodial</h3>
-      <p>Customer payments go directly to YOUR wallet. PayPi never holds customer funds.</p>
+      <h3>Secure & Reliable</h3>
+      <p>Built on Pi Network and Stellar blockchain for maximum security.</p>
     </div>
-
-    <div class="feature">
+    
+    <div class="feature-card">
       <div class="feature-icon">💰</div>
-      <h3>Prepaid Credits</h3>
-      <p>Deposit π for processing credits. 2% fee. Simple math: 1π = 1 credit.</p>
+      <h3>Low Fees</h3>
+      <p>Only 2% transaction fee. No hidden charges, no setup costs.</p>
     </div>
-
-    <div class="feature">
+    
+    <div class="feature-card">
       <div class="feature-icon">🔄</div>
-      <h3>Built-in Refunds</h3>
-      <p>Process A2U refunds with one click from your dashboard. Credits refunded automatically.</p>
+      <h3>Easy Refunds</h3>
+      <p>Process full or partial refunds with a single API call.</p>
     </div>
-
-    <div class="feature">
+    
+    <div class="feature-card">
       <div class="feature-icon">📊</div>
-      <h3>Admin Dashboard</h3>
-      <p>Track orders, credit balance, and revenue. Export data anytime.</p>
+      <h3>Real-time Dashboard</h3>
+      <p>Track payments, refunds, and analytics in your merchant portal.</p>
     </div>
-
-    <div class="feature">
-      <div class="feature-icon">🌐</div>
-      <h3>Works Everywhere</h3>
-      <p>WordPress, Shopify, custom sites. Add to any platform with one script tag.</p>
+    
+    <div class="feature-card">
+      <div class="feature-icon">🚀</div>
+      <h3>Easy Integration</h3>
+      <p>Simple REST API with comprehensive documentation and SDKs.</p>
     </div>
   </div>
 </section>
 
 <!-- How It Works -->
 <section class="how-it-works" id="how-it-works">
-  <h2>How It Works</h2>
-  
-  <div class="steps">
-    <div class="step">
-      <div class="step-number">1</div>
-      <div class="step-content">
-        <h3>Deploy to Cloudflare Pages</h3>
-        <p>Connect GitHub repository to Cloudflare Pages. Deploy in 2 minutes.</p>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="step-number">2</div>
-      <div class="step-content">
-        <h3>Configure Environment</h3>
-        <p>Set your Pi API key and app wallet secret in Cloudflare dashboard.</p>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="step-number">3</div>
-      <div class="step-content">
-        <h3>Deposit Credits</h3>
-        <p>Deposit π to get processing credits. 1π = 1 credit. Process 50π per credit deposited.</p>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="step-number">4</div>
-      <div class="step-content">
-        <h3>Add to Your Website</h3>
-        <p>One <code>&lt;script&gt;</code> tag and a <code>&lt;div&gt;</code>. Payment button appears automatically.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Code Example -->
-<section class="code-example">
-  <h2>Integration Example</h2>
-  
-  <div class="code-block">
-    <pre><code><span class="code-comment">&lt;!-- Add to your checkout page --&gt;</span>
-<span class="code-tag">&lt;script</span> <span class="code-attr">src</span>=<span class="code-string">"https://sdk.minepi.com/pi-sdk.js"</span><span class="code-tag">&gt;&lt;/script&gt;</span>
-<span class="code-tag">&lt;script</span> <span class="code-attr">src</span>=<span class="code-string">"https://your-paypi.pages.dev/sdk/v1/paypi.js"</span><span class="code-tag">&gt;&lt;/script&gt;</span>
-
-<span class="code-tag">&lt;div</span> <span class="code-attr">data-paypi-amount</span>=<span class="code-string">"10"</span> 
-     <span class="code-attr">data-paypi-order</span>=<span class="code-string">"ORD-12345"</span>
-     <span class="code-attr">data-paypi-description</span>=<span class="code-string">"Premium Plan"</span><span class="code-tag">&gt;</span>
-<span class="code-tag">&lt;/div&gt;</span>
-
-<span class="code-comment">&lt;!-- That's it! Payment button appears automatically --&gt;</span></code></pre>
-  </div>
-</section>
-
-<!-- Stats -->
-<section class="stats">
-  <div class="stat-grid">
-    <div class="stat">
-      <div class="stat-number">5min</div>
-      <div class="stat-label">Setup Time</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-number">2%</div>
-      <div class="stat-label">Processing Fee</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-number">100%</div>
-      <div class="stat-label">Open Source</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-number">35M+</div>
-      <div class="stat-label">Pi Network Users</div>
-    </div>
-  </div>
-</section>
-
-<!-- Pricing -->
-<section class="pricing" id="pricing">
-  <h2>Simple, Transparent Pricing</h2>
-  <p class="pricing-subtitle">Prepaid credit system with 2% processing fee</p>
-  
-  <div class="price-card">
-    <h3>Pay As You Go</h3>
-    <div class="price">2%<span class="price-period"> per transaction</span></div>
+  <div class="how-it-works-content">
+    <h2>How It Works</h2>
     
-    <ul class="price-features">
-      <li>Deposit π to get processing credits</li>
-      <li>1π deposit = 1 credit</li>
-      <li>Process 50π per credit (2% fee)</li>
-      <li>No monthly fees</li>
-      <li>No setup costs</li>
-      <li>Credits never expire</li>
-      <li>Refunds return credits</li>
-      <li>Admin dashboard included</li>
-      <li>Built-in A2U refund system</li>
-      <li>Full API access</li>
-      <li>100% open source</li>
-    </ul>
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Register</h3>
+        <p>Sign up for a merchant account in minutes</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Integrate</h3>
+        <p>Add PayPi to your website with simple API calls</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Accept Payments</h3>
+        <p>Start receiving Pi payments from your customers</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">4</div>
+        <h3>Manage</h3>
+        <p>Track everything in your merchant dashboard</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <a href="https://github.com/yyk-hub/paypi-plugin" class="btn btn-primary" style="width: 100%; text-align: center; margin-top: 20px;">
-      Get Started →
+<!-- Payment Flow -->
+<section class="payment-flow">
+  <div class="payment-flow-content">
+    <h2>Payment Flow</h2>
+    
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Create Order</h3>
+        <p>Merchant server creates order via PayPi API</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>User Pays</h3>
+        <p>User completes payment using Pi Browser</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>PayPi Verifies</h3>
+        <p>PayPi approves and completes the payment</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">4</div>
+        <h3>Webhook Notification</h3>
+        <p>Merchant server receives payment confirmation</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- System Workflow -->
+<section class="payment-flow" style="background:#f8fafc;">
+  <div class="payment-flow-content">
+    <h2>System Workflow</h2>
+    
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Merchant Website</h3>
+        <p>Customer clicks Pay with Pi on merchant website</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Merchant Backend</h3>
+        <p>Merchant server calls PayPi API to create payment</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>PayPi Platform</h3>
+        <p>PayPi handles Pi API, database, and blockchain transaction</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">4</div>
+        <h3>Webhook Response</h3>
+        <p>PayPi notifies merchant server when payment completes</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+  <h2>Ready to Get Started?</h2>
+  <p>Join hundreds of merchants accepting Pi payments today</p>
+  
+  <div class="cta-buttons">
+    <a href="/merchant-portal.html" class="btn btn-primary">
+      Open Merchant Portal →
+    </a>
+    <a href="/docs.html" class="btn btn-secondary">
+      Read Documentation
     </a>
   </div>
-
-  <p style="text-align: center; margin-top: 40px; color: #6b7280; max-width: 600px; margin-left: auto; margin-right: auto;">
-    <strong>Example:</strong> Deposit 200π → Get 200 credits → Process 10,000π worth of payments (200 credits ÷ 0.02 = 10,000π capacity)
-  </p>
-</section>
-
-<!-- Final CTA -->
-<section class="final-cta">
-  <h2>Ready to Accept Pi Payments?</h2>
-  <p>Deploy your own PayPi instance on Cloudflare Pages</p>
-  
-  <a href="https://github.com/yyk-hub/paypi-plugin" class="btn btn-primary">
-    Deploy Now - It's Free
-  </a>
 </section>
 
 <!-- Footer -->
-<footer>
+<footer class="footer">
   <div class="footer-content">
-    <div class="footer-section">
-      <h4>PayPi</h4>
-      <p>Payment Gateway for Pi Network</p>
-      <p style="margin-top: 20px; font-size: 14px; color: #9ca3af;">
-        Non-custodial, open source payment infrastructure with prepaid credit system.
-      </p>
+    <div>
+      <h3>PayPi</h3>
+      <p>Pi Network payment gateway for businesses</p>
     </div>
-
-    <div class="footer-section">
-      <h4>Product</h4>
+    
+    <div>
+      <h3>Product</h3>
       <ul>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin">GitHub</a></li>
-        <li><a href="#how-it-works">How It Works</a></li>
-        <li><a href="#pricing">Pricing</a></li>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin#readme">Documentation</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="/docs.html">Documentation</a></li>
+        <li><a href="/merchant-portal.html">Merchant Portal</a></li>
       </ul>
     </div>
-
-    <div class="footer-section">
-      <h4>Resources</h4>
+    
+    <div>
+      <h3>Developers</h3>
       <ul>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin/blob/main/docs/QUICKSTART.md">Quick Start</a></li>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin/blob/main/docs/STELLAR-SDK-SETUP.md">Technical Setup</a></li>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin/blob/main/DEPLOYMENT-MODELS.md">Deployment Guide</a></li>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin/tree/main/examples">Examples</a></li>
+        <li><a href="/docs.html#api">API Reference</a></li>
+        <li><a href="https://github.com/yyk-hub/paypi-plugin" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+        <li><a href="/test-payment-merchant.html">Test Simulator</a></li>
+        <li><a href="/test-payment.html">Test Payment</a></li>
+        <li><a href="/admin-dashboard.html">Admin</a></li>
       </ul>
     </div>
-
-    <div class="footer-section">
-      <h4>Support</h4>
+    
+    <div>
+      <h3>Support</h3>
       <ul>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin/issues">GitHub Issues</a></li>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin/discussions">Discussions</a></li>
-        <li><a href="https://github.com/yyk-hub/paypi-plugin#-faq">FAQ</a></li>
+        <li><a href="/docs.html#faq">FAQ</a></li>
+        <li><a href="mailto:support@paypi.com">Contact</a></li>
+        <li><a href="/docs.html#guides">Guides</a></li>
       </ul>
     </div>
   </div>
   
   <div class="footer-bottom">
-    <p>&copy; 2026 PayPi. MIT License. Made with ❤️ for Pi Network community.</p>
-    <p class="footer-disclaimer">
-      PayPi is an independent payment gateway compatible with Pi Network.<br>
-      Not affiliated with, endorsed by, or sponsored by Pi Network.<br>
-      "Pi Network" is a trademark of Pi Community Company.
-    </p>
+    <p>&copy; 2026 PayPi. Built on Pi Network.</p>
   </div>
 </footer>
 
