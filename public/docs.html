@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation - PayPi</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.6;
+      color: #1e293b;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 2rem;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 3rem;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 2rem;
+      height: fit-content;
+    }
+
+    .sidebar h3 {
+      margin-bottom: 1rem;
+      color: #667eea;
+    }
+
+    .sidebar ul {
+      list-style: none;
+    }
+
+    .sidebar a {
+      display: block;
+      padding: 0.5rem 0;
+      color: #64748b;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .sidebar a:hover {
+      color: #667eea;
+    }
+
+    .content {
+      max-width: 800px;
+    }
+
+    .content h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: #1e293b;
+    }
+
+    .content h2 {
+      font-size: 1.75rem;
+      margin: 2rem 0 1rem;
+      color: #334155;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 0.5rem;
+    }
+
+    .content h3 {
+      font-size: 1.25rem;
+      margin: 1.5rem 0 0.75rem;
+      color: #475569;
+    }
+
+    .content code {
+      background: #f1f5f9;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+
+    .content pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1.5rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    .content pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+    }
+
+    .note {
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
+
+    .warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <nav class="nav">
+    <div class="logo">PayPi Docs</div>
+    <ul class="nav-links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/merchant-portal.html">Portal</a></li>
+      <li><a href="https://github.com/yyk-hub/paypi-plugin" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+    </ul>
+  </nav>
+</header>
+
+<div class="container">
+  <aside class="sidebar">
+    <h3>Getting Started</h3>
+    <ul>
+      <li><a href="#quick-start">Quick Start</a></li>
+      <li><a href="#payment-flow">Payment Flow</a></li>
+      <li><a href="#authentication">Authentication</a></li>
+      <li><a href="#credits">Credits System</a></li>
+    </ul>
+
+    <h3>API Reference</h3>
+    <ul>
+      <li><a href="#create-payment">Create Payment</a></li>
+      <li><a href="#complete-payment">Complete Payment</a></li>
+      <li><a href="#process-refund">Process Refund</a></li>
+      <li><a href="#check-balance">Check Balance</a></li>
+      <li><a href="#webhooks">Webhooks</a></li>
+    </ul>
+
+    <h3>Guides</h3>
+    <ul>
+      <li><a href="#integration">Integration Guide</a></li>
+      <li><a href="#testing">Testing</a></li>
+      <li><a href="#production">Going Live</a></li>
+    </ul>
+  </aside>
+
+  <main class="content">
+    <h1>PayPi Documentation</h1>
+    <p>Complete guide to integrating Pi Network payments into your application.</p>
+
+    <h2 id="quick-start">Quick Start</h2>
+    <p>Get started with PayPi in 5 minutes:</p>
+
+    <h3>1. Register for Merchant Account</h3>
+    <p>Visit the <a href="/merchant-portal.html">Merchant Portal</a> and create an account.</p>
+
+    <h3>2. Get Your API Key</h3>
+    <p>After registration, you'll receive your API key and merchant ID.</p>
+
+    <h3>3. Add Credits</h3>
+    <p>Deposit Pi to get credits (1π = 1 credit). Each payment costs 2% in credits.</p>
+
+    <h3>4. Make Your First Payment</h3>
+    <pre><code>POST /api/pi/create
+Content-Type: application/json
+Authorization: Bearer YOUR_API_KEY
+
+{
+  "amount": 10.0,
+  "description": "Product purchase",
+  "merchant_id": "YOUR_MERCHANT_ID"
+}</code></pre>
+
+    <h2 id="payment-flow">Payment Flow Overview</h2>
+    <p>PayPi handles the entire Pi payment flow for merchants. The typical payment flow is:</p>
+    <ol>
+      <li>Merchant server creates payment via <code>/api/pi/create</code></li>
+      <li>PayPi creates order and Pi payment request</li>
+      <li>User approves payment in Pi Browser</li>
+      <li>PayPi approves and completes the payment</li>
+      <li>Blockchain transaction is submitted</li>
+      <li>PayPi sends webhook notification to merchant server</li>
+      <li>Merchant fulfills the order</li>
+    </ol>
+    <div class="note">
+      <strong>Note:</strong> Merchants only need to call the create payment API. PayPi handles approval, completion, blockchain transactions, refunds, and credits automatically.
+    </div>
+
+    <h2 id="authentication">Authentication</h2>
+    <p>All API requests require authentication using your API key:</p>
+    
+    <pre><code>Authorization: Bearer YOUR_API_KEY</code></pre>
+
+    <div class="warning">
+      <strong>Security:</strong> Never expose your API key in client-side code. Always make API calls from your server.
+    </div>
+
+    <h2 id="credits">Credits System</h2>
+    <p>PayPi uses a prepaid credits system:</p>
+    <ul>
+      <li><strong>Deposit:</strong> 1π = 1 credit</li>
+      <li><strong>Payment Fee:</strong> 2% (0.02 credits per 1π)</li>
+      <li><strong>Refunds:</strong> Credits are returned on refund</li>
+    </ul>
+
+    <div class="note">
+      <strong>Example:</strong> To process 100π in payments, you need 2 credits (100π × 2% = 2 credits).
+    </div>
+
+    <h2 id="create-payment">Create Payment</h2>
+    <p>Create a new payment request:</p>
+
+    <h3>Endpoint</h3>
+    <pre><code>POST /api/pi/create</code></pre>
+
+    <h3>Request Body</h3>
+    <pre><code>{
+  "amount": 10.0,
+  "description": "Product XYZ",
+  "merchant_id": "YOUR_MERCHANT_ID"
+}</code></pre>
+
+    <h3>Response</h3>
+    <pre><code>{
+  "success": true,
+  "payment_id": "ZFYX1wIsrV5GuNT8y718TwaUcaWY",
+  "order_id": "ORD1773837119058",
+  "amount": 10.0,
+  "approval_url": "https://..."
+}</code></pre>
+
+    <h3>Next Steps</h3>
+    <ol>
+      <li>Redirect user to <code>approval_url</code></li>
+      <li>User approves in Pi Browser</li>
+      <li>Payment automatically completes</li>
+      <li>Webhook notification sent (if configured)</li>
+    </ol>
+
+    <h2 id="complete-payment">Complete Payment</h2>
+    <p>Payment completion is automatic after user approval. Check status:</p>
+
+    <h3>Endpoint</h3>
+    <pre><code>GET /api/pi/payment/{payment_id}</code></pre>
+
+    <h3>Response</h3>
+    <pre><code>{
+  "payment_id": "ZFYX1wIsrV5GuNT8y718TwaUcaWY",
+  "status": "completed",
+  "amount": 10.0,
+  "txid": "fcac41d4765e4a6ce808c9e56fcc1b2a...",
+  "completed_at": 1773837200
+}</code></pre>
+
+    <h2 id="process-refund">Process Refund</h2>
+    <p>Refund a payment (full or partial):</p>
+
+    <h3>Endpoint</h3>
+    <pre><code>POST /api/refund/process</code></pre>
+
+    <h3>Request Body</h3>
+    <pre><code>{
+  "order_id": "ORD1773837119058",
+  "amount": 10.0,
+  "reason": "Customer request"
+}</code></pre>
+
+    <h3>Response</h3>
+    <pre><code>{
+  "success": true,
+  "refund_id": "REF_1773837300_abc",
+  "txid": "89265e67e8515aa18ff43543cafc...",
+  "amount": 10.0,
+  "refund_type": "full",
+  "credits_refunded": 0.2
+}</code></pre>
+
+    <div class="note">
+      <strong>Partial Refunds:</strong> You can refund any amount up to the remaining balance. Multiple partial refunds are supported.
+    </div>
+
+    <h2 id="integration">Integration Guide</h2>
+    
+    <h3>Step 1: Server-Side Setup</h3>
+    <pre><code>// Node.js example
+const axios = require('axios');
+
+const API_KEY = process.env.PAYPI_API_KEY;
+const MERCHANT_ID = process.env.PAYPI_MERCHANT_ID;
+const API_URL = 'https://paypi-plugin.pages.dev/api';
+
+async function createPayment(amount, description) {
+  const response = await axios.post(`${API_URL}/pi/create`, {
+    amount,
+    description,
+    merchant_id: MERCHANT_ID
+  }, {
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  return response.data;
+}</code></pre>
+
+    <h3>Step 2: Client-Side Integration</h3>
+    <pre><code>// After user clicks "Pay with Pi"
+async function handlePayment() {
+  // Call your backend
+  const payment = await fetch('/api/create-payment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      amount: 10.0,
+      description: 'Product purchase'
+    })
+  }).then(r => r.json());
+  
+  // Redirect to Pi Browser
+  window.location.href = payment.approval_url;
+}</code></pre>
+
+    <h3>Step 3: Handle Callback</h3>
+    <pre><code>// User returns after approval
+app.get('/payment/callback', async (req, res) => {
+  const { order_id } = req.query;
+  
+  // Verify payment completed
+  const order = await getOrder(order_id);
+  
+  if (order.status === 'completed') {
+    // Deliver product/service
+    await fulfillOrder(order_id);
+    res.redirect('/success');
+  } else {
+    res.redirect('/error');
+  }
+});</code></pre>
+
+    <h2 id="webhooks">Webhooks</h2>
+    <p>PayPi sends webhook notifications when payment status changes.</p>
+
+    <h3>Payment Completed Webhook</h3>
+    <pre><code>{
+  "event": "payment.completed",
+  "order_id": "ORD123",
+  "payment_id": "ABC123",
+  "amount": 10.0,
+  "txid": "stellar_tx_hash",
+  "status": "completed"
+}</code></pre>
+
+    <h3>Refund Completed Webhook</h3>
+    <pre><code>{
+  "event": "refund.completed",
+  "refund_id": "REF123",
+  "order_id": "ORD123",
+  "amount": 5.0,
+  "txid": "stellar_tx_hash"
+}</code></pre>
+
+    <h2 id="testing">Testing</h2>
+    <p>Use the <a href="/test-payment-merchant.html">Test Simulator</a> to test your integration:</p>
+
+    <ol>
+      <li>Open test simulator</li>
+      <li>Create test payments</li>
+      <li>Verify payment flow</li>
+      <li>Test refunds</li>
+      <li>Check webhook delivery</li>
+    </ol>
+
+    <h2 id="production">Going to Production</h2>
+    
+    <h3>Checklist</h3>
+    <ul>
+      <li>✅ Test all payment flows</li>
+      <li>✅ Test refund flows</li>
+      <li>✅ Set up webhook endpoints</li>
+      <li>✅ Add sufficient credits</li>
+      <li>✅ Update API URLs to production</li>
+      <li>✅ Secure your API keys</li>
+    </ul>
+
+    <h3>Production URLs</h3>
+    <pre><code>Production: https://paypi-plugin.pages.dev
+Testnet:    https://testnet.paypi-plugin.pages.dev</code></pre>
+
+    <h3>Support</h3>
+    <p>Need help? Contact us:</p>
+    <ul>
+      <li>Email: <a href="/cdn-cgi/l/email-protection#4d3e383d3d223f390d3d2c343d24632e2220"><span class="__cf_email__" data-cfemail="bfcccacfcfd0cdcbffcfdec6cfd691dcd0d2">[email&#160;protected]</span></a></li>
+      <li>GitHub: <a href="https://github.com/yyk-hu
