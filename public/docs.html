@@ -329,6 +329,29 @@ Authorization: Bearer YOUR_API_KEY
       <strong>Partial Refunds:</strong> You can refund any amount up to the remaining balance. Multiple partial refunds are supported.
     </div>
 
+    <h2 id="check-balance">Check Balance</h2>
+    <p>Check your current credit balance:</p>
+
+    <h3>Endpoint</h3>
+    <pre><code>GET /api/merchant/balance</code></pre>
+
+    <h3>Headers</h3>
+    <pre><code>Authorization: Bearer YOUR_API_KEY</code></pre>
+
+    <h3>Response</h3>
+    <pre><code>{
+  "success": true,
+  "merchant_id": "SHOP_ABC_123",
+  "credit_balance": 45.20,
+  "pending_credits": 0,
+  "total_deposited": 50.00,
+  "total_spent": 4.80
+}</code></pre>
+
+    <div class="note">
+      <strong>Credit Calculation:</strong> Your balance is updated in real-time. Credits are deducted when payments are created (2% fee) and returned when refunds are processed.
+    </div>
+
     <h2 id="integration">Integration Guide</h2>
     
     <h3>Step 1: Server-Side Setup</h3>
