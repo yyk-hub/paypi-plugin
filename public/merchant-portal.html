@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merchant Portal - PayPi</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* Auth Pages */
+    .auth-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+    }
+
+    .auth-box {
+      background: white;
+      border-radius: 12px;
+      padding: 3rem;
+      max-width: 450px;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .auth-box h1 {
+      margin-bottom: 0.5rem;
+      color: #1e293b;
+    }
+
+    .auth-box p {
+      color: #64748b;
+      margin-bottom: 2rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #475569;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+      width: 100%;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      opacity: 0.9;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .auth-switch {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #64748b;
+    }
+
+    .auth-switch a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .auth-switch a:hover {
+      text-decoration: underline;
+    }
+
+    .error-message {
+      background: #fee;
+      color: #c00;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .success-message {
+      background: #efe;
+      color: #060;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    /* Dashboard Layout */
+    .dashboard {
+      display: none;
+      min-height: 100vh;
+    }
+
+    .dashboard-container {
+      display: flex;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #1e293b;
+      color: white;
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 2rem 0;
+    }
+
+    .sidebar-logo {
+      padding: 0 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .sidebar-logo h2 {
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+    }
+
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: all 0.2s;
+      gap: 0.75rem;
+    }
+
+    .sidebar-nav a:hover,
+    .sidebar-nav a.active {
+      background: rgba(102, 126, 234, 0.1);
+      color: white;
+      border-left: 3px solid #667eea;
+    }
+
+    .sidebar-logout {
+      position: absolute;
+      bottom: 2rem;
+      left: 0;
+      right: 0;
+      padding: 0 1.5rem;
+    }
+
+    .sidebar-logout button {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .sidebar-logout button:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .main-content {
+      margin-left: 260px;
+      padding: 2rem;
+      width: calc(100% - 260px);
+    }
+
+    .page-header {
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+      color: #64748b;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .stat-label {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-change {
+      font-size: 0.85rem;
+      color: #10b981;
+    }
+
+    /* Info Card */
+    .info-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .info-card h2 {
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .info-row {
+      display: flex;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 600;
+      width: 150px;
+      color: #64748b;
+    }
+
+    .info-value {
+      flex: 1;
+      color: #1e293b;
+    }
+
+    /* Table */
+    .table-container {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .table-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-header h2 {
+      font-size: 1.25rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: #f8fafc;
+      padding: 1rem 1.5rem;
+      text-align: left;
+      font-weight: 600;
+      color: #64748b;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    tr:hover {
+      background: #f8fafc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    /* API Key Section */
+    .api-key-box {
+      background: #f8fafc;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .api-key-value {
+      flex: 1;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+    }
+
+    .copy-btn {
+      padding: 0.5rem 1rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .copy-btn:hover {
+      background: #5568d3;
+    }
+
+    .warning-box {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    /* Hide sections by default */
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #64748b;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        position: relative;
+        min-height: auto;
+      }
+      
+      .main-content {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .quick-actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login Page -->
+<div id="loginPage" class="auth-container">
+  <div class="auth-box">
+    <h1>Sign In</h1>
+    <p>Access your PayPi merchant account</p>
+    
+    <div id="loginError" class="error-message"></div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      
+      <button type="submit" class="btn btn-primary">Sign In</button>
+    </form>
+    
+    <div class="auth-switch">
+      Don't have an account? <a href="#" onclick="showRegister(); return false;">Sign Up</a>
+    </div>
+  </div>
+</div>
+
+<!-- Register Page -->
+<div id="registerPage" class="auth-container" style="display:none">
+  <div class="auth-box">
+    <h1>Create Account</h1>
+    <p>Start accepting Pi payments today</p>
+    
+    <div id="registerError" class="error-message"></div>
+    <div id="registerSuccess" class="success-message"></div>
+    
+    <form id="registerForm">
+      <div class="form-group">
+        <label>Business Name</label>
+        <input type="text" id="registerBusinessName" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="registerEmail" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="registerPassword" required minlength="8">
+      </div>
+      
+      <div class="form-group">
+        <label>Pi Wallet Address</label>
+        <input type="text" id="registerWallet" placeholder="GXXXXXXX..." required>
+      </div>
+      
+      <button type="submit" class="btn btn-primary">Create Account</button>
+    </form>
+    
+    <div class="auth-switch">
+      Already have an account? <a href="#" onclick="showLogin(); return false;">Sign In</a>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboardPage" class="dashboard">
+  <div class="dashboard-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <h2>PayPi</h2>
+        <p style="color: #64748b; font-size: 0.9rem;">Merchant Portal</p>
+      </div>
+      
+      <nav>
+        <ul class="sidebar-nav">
+          <li><a href="#" onclick="showSection('dashboard'); return false;" class="active">
+            📊 Dashboard
+          </a></li>
+          <li><a href="#" onclick="showSection('orders'); return false;">
+            📦 Orders
+          </a></li>
+          <li><a href="#" onclick="showSection('refunds'); return false;">
+            💰 Refunds
+          </a></li>
+          <li><a href="#" onclick="showSection('credits'); return false;">
+            💳 Credits
+          </a></li>
+          <li><a href="#" onclick="showSection('apikeys'); return false;">
+            🔑 API Keys
+          </a></li>
+          <li><a href="#" onclick="showSection('webhooks'); return false;">
+            🔔 Webhooks
+          </a></li>
+          <li><a href="#" onclick="showSection('settings'); return false;">
+            ⚙️ Settings
+          </a></li>
+        </ul>
+      </nav>
+      
+      <div class="sidebar-logout">
+        <button onclick="logout()">Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Dashboard Section -->
+      <div id="dashboardSection" class="section active">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p>Welcome back, <span id="merchantName">Merchant</span>!</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Credit Balance</div>
+            <div class="stat-value" id="statCredits">0.00</div>
+            <div class="stat-change">Ready to use</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-label">Total Orders</div>
+            <div class="stat-value" id="statOrders">0</div>
+            <div class="stat-change">All time</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-label">Total Volume</div>
+            <div class="stat-value" id="statVolume">0π</div>
+            <div class="stat-change">All time</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-label">Total Refunds</div>
+            <div class="stat-value" id="statRefunds">0</div>
+            <div class="stat-change">All time</div>
+          </div>
+        </div>
+
+        <!-- Merchant Info -->
+        <div class="info-card">
+          <h2>Merchant Information</h2>
+          <div class="info-row">
+            <div class="info-label">Business Name</div>
+            <div class="info-value" id="infoBusinessName">-</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Email</div>
+            <div class="info-value" id="infoEmail">-</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Merchant ID</div>
+            <div class="info-value" id="infoMerchantId">-</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Credit Balance</div>
+            <div class="info-value" id="infoCredits">-</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Pi Wallet</div>
+            <div class="info-value" id="infoWallet">-</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+          <button class="btn btn-primary" onclick="showSection('credits')">Add Credits</button>
+          <button class="btn btn-secondary" onclick="showSection('orders')">View All Orders</button>
+        </div>
+      </div>
+
+      <!-- Orders Section -->
+      <div id="ordersSection" class="section">
+        <div class="page-header">
+          <h1>Orders</h1>
+          <p>View all your payment orders</p>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+            <h2>All Orders</h2>
+            <button class="btn btn-secondary" style="width: auto;" onclick="loadOrders()">Refresh</button>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr>
+                <td colspan="5" class="loading">Loading orders...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Refunds Section -->
+      <div id="refundsSection" class="section">
+        <div class="page-header">
+          <h1>Refunds</h1>
+          <p>View all your refund transactions</p>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+            <h2>All Refunds</h2>
+            <button class="btn btn-secondary" style="width: auto;" onclick="loadRefunds()">Refresh</button>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Refund ID</th>
+                <th>Order ID</th>
+                <th>Amount</th>
+                <th>Type</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="refundsTableBody">
+              <tr>
+                <td colspan="5" class="loading">Loading refunds...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Credits Section -->
+      <div id="creditsSection" class="section">
+        <div class="page-header">
+          <h1>Credits Management</h1>
+          <p>Manage your credit balance and transactions</p>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="stat-card">
+            <div class="stat-label">Current Balance</div>
+            <div class="stat-value" id="creditsBalance">0.00</div>
+            <div class="stat-change" id="creditsCapacity">Enough for 0π in payments</div>
+          </div>
+          
+          <div class="stat-card">
+            <button class="btn btn-primary" onclick="addCredits()">Add Credits</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+            <h2>Credit Transactions</h2>
+            <button class="btn btn-secondary" style="width: auto;" onclick="loadCreditTransactions()">Refresh</button>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody id="creditsTableBody">
+              <tr>
+                <td colspan="4" class="loading">Loading transactions...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- API Keys Section -->
+      <div id="apikeysSection" class="section">
+        <div class="page-header">
+          <h1>API Keys</h1>
+          <p>Manage your API authentication</p>
+        </div>
+
+        <div class="info-card">
+          <h2>Merchant ID</h2>
+          <div class="api-key-box">
+            <div class="api-key-value" id="apiMerchantId">-</div>
+            <button class="copy-btn" onclick="copyToClipboard('apiMerchantId')">Copy</button>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <h2>API Key</h2>
+          <div class="api-key-box">
+            <div class="api-key-value" id="apiKeyValue">sk_live_••••••••••••••••</div>
+            <button class="copy-btn" onclick="toggleApiKey()">Show</button>
+            <button class="copy-btn" onclick="copyToClipboard('apiKeyValue')">Copy</button>
+          </div>
+          
+          <div class="warning-box">
+            <strong>⚠️ Keep your API key secure!</strong><br>
+            Never expose your API key in client-side code. Always make API calls from your server.
+          </div>
+          
+          <button class="btn btn-secondary" style="width: auto;" onclick="regenerateApiKey()">Regenerate API Key</button>
+        </div>
+
+        <div class="info-card">
+          <h2>Usage Example</h2>
+          <pre style="background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto;"><code>Authorization: Bearer YOUR_API_KEY
+
+curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 10.0,
+    "description": "Product purchase",
+    "merchant_id": "YOUR_MERCHANT_ID"
+  }'</code></pre>
+        </div>
+      </div>
+
+      <!-- Webhooks Section -->
+      <div id="webhooksSection" class="section">
+        <div class="page-header">
+          <h1>Webhooks</h1>
+          <p>Configure webhook notifications</p>
+        </div>
+
+        <div class="info-card">
+          <h2>Webhook Configuration</h2>
+          
+          <div class="form-group">
+            <label>Webhook URL</label>
+            <input type="url" id="webhookUrl" placeholder="https://yoursite.com/webhook">
+          </div>
+          
+          <button class="btn btn-primary" style="width: auto;" onclick="saveWebhook()">Save Webhook URL</button>
+          <button class="btn btn-secondary" style="width: auto; margin-left: 1rem;" onclick="testWebhook()">Test Webhook</button>
+        </div>
+
+        <div class="info-card">
+          <h2>Webhook Events</h2>
+          <div class="info-row">
+            <div class="info-label">payment.completed</div>
+            <div class="info-value">Sent when payment is completed</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">refund.completed</div>
+            <div class="info-value">Sent when refund is processed</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+            <h2>Recent Deliveries</h2>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Event</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="webhookDeliveriesBody">
+              <tr>
+                <td colspan="3" class="loading">No recent deliveries</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Settings Section -->
+      <div id="settingsSection" class="section">
+        <div class="page-header">
+          <h1>Settings</h1>
+          <p>Manage your account settings</p>
+        </div>
+
+        <div class="info-card">
+          <h2>Business Information</h2>
+          
+          <div class="form-group">
+            <label>Business Name</label>
+            <input type="text" id="settingsBusinessName">
+          </div>
+          
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="settingsEmail">
+          </div>
+          
+          <div class="form-group">
+            <label>Pi Wallet Address</label>
+            <input type="text" id="settingsWallet">
+          </div>
+          
+          <button class="btn btn-primary" style="width: auto;" onclick="saveSettings()">Save Changes</button>
+        </div>
+
+        <div class="info-card">
+          <h2>Security</h2>
+          <button class="btn btn-secondary" style="width: auto;" onclick="changePassword()">Change Password</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  // Global state
+  let merchantData = null;
+  let apiKeyVisible = false;
+  let fullApiKey = '';
+
+  // Check if user is logged in on page load
+  window.onload = function() {
+    const token = localStorage.getItem('merchant_token');
+    if (token) {
+      // Verify token and load dashboard
+      verifyToken(token);
+    }
+  };
+
+  // Show/hide pages
+  function showLogin() {
+    document.getElementById('loginPage').style.display = 'flex';
+    document.getElementById('registerPage').style.display = 'none';
+    document.getElementById('dashboardPage').style.display = 'none';
+  }
+
+  function showRegister() {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('registerPage').style.display = 'flex';
+    document.getElementById('dashboardPage').style.display = 'none';
+  }
+
+  function showDashboard() {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('registerPage').style.display = 'none';
+    document.getElementById('dashboardPage').style.display = 'block';
+    loadDashboardData();
+  }
+
+  // Show/hide sections
+  function showSection(section) {
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    
+    // Remove active from all nav links
+    document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+    
+    // Show selected section
+    document.getElementById(section + 'Section').classList.add('active');
+    
+    // Add active to clicked nav link
+    event.target.classList.add('active');
+    
+    // Load section data
+    loadSectionData(section);
+  }
+
+  // Login handler
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    try {
+      const response = await fetch('/api/merchant/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        localStorage.setItem('merchant_token', data.token);
+        merchantData = data.merchant;
+        showDashboard();
+      } else {
+        showError('loginError', data.error || 'Login failed');
+      }
+    } catch (error) {
+      showError('loginError', 'Connection error. Please try again.');
+    }
+  });
+
+  // Register handler
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const businessName = document.getElementById('registerBusinessName').value;
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const wallet = document.getElementById('registerWallet').value;
+    
+    try {
+      const response = await fetch('/api/merchant/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_name: businessName,
+          email,
+          password,
+          pi_wallet_address: wallet
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showSuccess('registerSuccess', 'Account created! Please sign in.');
+        setTimeout(() => showLogin(), 2000);
+      } else {
+        showError('registerError', data.error || 'Registration failed');
+      }
+    } catch (error) {
+      showError('registerError', 'Connection error. Please try again.');
+    }
+  });
+
+  // Verify token
+  async function verifyToken(token) {
+    try {
+      const response = await fetch('/api/merchant/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        merchantData = data.merchant;
+        showDashboard();
+      } else {
+        localStorage.removeItem('merchant_token');
+        showLogin();
+      }
+    } catch (error) {
+      localStorage.removeItem('merchant_token');
+      showLogin();
+    }
+  }
+
+  // Load dashboard data
+  async function loadDashboardData() {
+    const token = localStorage.getItem('merchant_token');
+    
+    try {
+      const response = await fetch('/api/merchant/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update stats
+        document.getElementById('statCredits').textContent = data.credit_balance.toFixed(2);
+        document.getElementById('statOrders').textContent = data.total_orders;
+        document.getElementById('statVolume').textContent = data.total_volume.toFixed(7) + 'π';
+        document.getElementById('statRefunds').textContent = data.total_refunds;
+        
+        // Update merchant info
+        document.getElementById('merchantName').textContent = data.business_name;
+        document.getElementById('infoBusinessName').textContent = data.business_name;
+        document.getElementById('infoEmail').textContent = data.email;
+        document.getElementById('infoMerchantId').textContent = data.merchant_id;
+        document.getElementById('infoCredits').textContent = data.credit_balance.toFixed(2);
+        document.getElementById('infoWallet').textContent = data.pi_wallet_address;
+        
+        // Store for other sections
+        merchantData = data;
+        fullApiKey = data.api_key;
+        
+        // Update API keys section
+        document.getElementById('apiMerchantId').textContent = data.merchant_id;
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    }
+  }
+
+  // Load section-specific data
+  function loadSectionData(section) {
+    switch(section) {
+      case 'orders':
+        loadOrders();
+        break;
+      case 'refunds':
+        loadRefunds();
+        break;
+      case 'credits':
+        loadCreditTransactions();
+        break;
+      case 'apikeys':
+        // Already loaded
+        break;
+      case 'webhooks':
+        loadWebhookConfig();
+        break;
+      case 'settings':
+        loadSettings();
+        break;
+    }
+  }
+
+  // Load orders
+  async function loadOrders() {
+    const token = localStorage.getItem('merchant_token');
+    const tbody = document.getElementById('ordersTableBody');
+    
+    try {
+      const response = await fetch('/api/merchant/orders', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.orders.length > 0) {
+        tbody.innerHTML = data.orders.map(order => `
+          <tr>
+            <td>${order.order_id}</td>
+            <td>${order.amount.toFixed(7)}π</td>
+            <td><span class="badge badge-success">${order.status}</span></td>
+            <td>${new Date(order.created_at * 1000).toLocaleDateString()}</td>
+            <td><button class="copy-btn" onclick="viewOrder('${order.order_id}')">View</button></td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">No orders found</td></tr>';
+      }
+    } catch (error) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Failed to load orders</td></tr>';
+    }
+  }
+
+  // Load refunds
+  async function loadRefunds() {
+    const token = localStorage.getItem('merchant_token');
+    const tbody = document.getElementById('refundsTableBody');
+    
+    try {
+      const response = await fetch('/api/merchant/refunds', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.refunds.length > 0) {
+        tbody.innerHTML = data.refunds.map(refund => `
+          <tr>
+            <td>${refund.refund_id}</td>
+            <td>${refund.order_id}</td>
+            <td>${refund.amount.toFixed(7)}π</td>
+            <td><span class="badge badge-info">${refund.refund_type}</span></td>
+            <td>${new Date(refund.created_at * 1000).toLocaleDateString()}</td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">No refunds found</td></tr>';
+      }
+    } catch (error) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Failed to load refunds</td></tr>';
+    }
+  }
+
+  // Load credit transactions
+  async function loadCreditTransactions() {
+    const token = localStorage.getItem('merchant_token');
+    const tbody = document.getElementById('creditsTableBody');
+    
+    // Update balance display
+    if (merchantData) {
+      document.getElementById('creditsBalance').textContent = merchantData.credit_balance.toFixed(2);
+      const capacity = (merchantData.credit_balance / 0.02).toFixed(0);
+      document.getElementById('creditsCapacity').textContent = `Enough for ${capacity}π in payments`;
+    }
+    
+    try {
+      const response = await fetch('/api/merchant/credits/transactions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.transactions.length > 0) {
+        tbody.innerHTML = data.transactions.map(tx => `
+          <tr>
+            <td>${new Date(tx.created_at * 1000).toLocaleDateString()}</td>
+            <td><span class="badge badge-${tx.type === 'deposit' ? 'success' : 'warning'}">${tx.type}</span></td>
+            <td>${tx.amount > 0 ? '+' : ''}${tx.amount.toFixed(2)}</td>
+            <td>${tx.balance.toFixed(2)}</td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">No transactions found</td></tr>';
+      }
+    } catch (error) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Failed to load transactions</td></tr>';
+    }
+  }
+
+  // Load webhook config
+  async function loadWebhookConfig() {
+    const token = localStorage.getItem('merchant_token');
+    
+    try {
+      const response = await fetch('/api/merchant/webhook', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        document.getElementById('webhookUrl').value = data.webhook_url || '';
+      }
+    } catch (error) {
+      console.error('Failed to load webhook config:', error);
+    }
+  }
+
+  // Load settings
+  function loadSettings() {
+    if (merchantData) {
+      document.getElementById('settingsBusinessName').value = merchantData.business_name;
+      document.getElementById('settingsEmail').value = merchantData.email;
+      document.getElementById('settingsWallet').value = merchantData.pi_wallet_address;
+    }
+  }
+
+  // Save webhook
+  async function saveWebhook() {
+    const token = localStorage.getItem('merchant_token');
+    const webhookUrl = document.getElementById('webhookUrl').value;
+    
+    try {
+      const response = await fetch('/api/merchant/webhook', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ webhook_url: webhookUrl })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Webhook URL saved successfully!');
+      } else {
+        alert('Failed to save webhook URL');
+      }
+    } catch (error) {
+      alert('Connection error. Please try again.');
+    }
+  }
+
+  // Test webhook
+  async function testWebhook() {
+    const token = localStorage.getItem('merchant_token');
+    
+    try {
+      const response = await fetch('/api/merchant/webhook/test', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Test webhook sent successfully!');
+      } else {
+        alert('Failed to send test webhook');
+      }
+    } catch (error) {
+      alert('Connection error. Please try again.');
+    }
+  }
+
+  // Add credits
+  function addCredits() {
+    const amount = prompt('How many credits would you like to add? (1π = 1 credit)');
+    if (amount && !isNaN(amount) && amount > 0) {
+      // This would create a Pi payment for deposit
+      alert('Credit deposit feature coming soon! For now, contact support to add credits.');
+    }
+  }
+
+  // Save settings
+  async function saveSettings() {
+    const token = localStorage.getItem('merchant_token');
+    
+    const businessName = document.getElementById('settingsBusinessName').value;
+    const email = document.getElementById('settingsEmail').value;
+    const wallet = document.getElementById('settingsWallet').value;
+    
+    try {
+      const response = await fetch('/api/merchant/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          business_name: businessName,
+          email,
+          pi_wallet_address: wallet
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Settings saved successfully!');
+        loadDashboardData(); // Reload to get updated info
+      } else {
+        alert('Failed to save settings');
+      }
+    } catch (error) {
+      alert('Connection error. Please try again.');
+    }
+  }
+
+  // Change password
+  function changePassword() {
+    const newPassword = prompt('Enter new password (minimum 8 characters):');
+    if (newPassword && newPassword.length >= 8) {
+      // API call to change password
+      alert('Password change feature coming soon!');
+    }
+  }
+
+  // Toggle API key visibility
+  function toggleApiKey() {
+    const elem = document.getElementById('apiKeyValue');
+    const btn = event.target;
+    
+    if (apiKeyVisible) {
+      elem.textContent = 'sk_live_••••••••••••••••';
+      btn.textContent = 'Show';
+      apiKeyVisible = false;
+    } else {
+      elem.textContent = fullApiKey;
+      btn.textContent = 'Hide';
+      apiKeyVisible = true;
+    }
+  }
+
+  // Regenerate API key
+  async function regenerateApiKey() {
+    if (!confirm('Are you sure? This will invalidate your current API key.')) {
+      return;
+    }
+    
+    const token = localStorage.getItem('merchant_token');
+    
+    try {
+      const response = await fetch('/api/merchant/api-key/regenerate', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        fullApiKey = data.api_key;
+        document.getElementById('apiKeyValue').textContent = data.api_key;
+        apiKeyVisible = true;
+        event.target.textContent = 'Hide';
+        alert('API key regenerated successfully! Make sure to update your integration.');
+      } else {
+        alert('Failed to regenerate API key');
+      }
+    } catch (error) {
+      alert('Connection error. Please try again.');
+    }
+  }
+
+  // Copy to clipboard
+  function copyToClipboard(elementId) {
+    const text = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Copied to clipboard!');
+    });
+  }
+
+  // View order details
+  function viewOrder(orderId) {
+    alert('Order details for ' + orderId + '\n\nFull order details view coming soon!');
+  }
+
+  // Logout
+  function logout() {
+    localStorage.removeItem('merchant_token');
+    merchantData = null;
+    showLogin();
+  }
+
+  // Show error message
+  function showError(elementId, message) {
+    const elem = document.getElementById(elementId);
+    elem.textContent = message;
+    elem.style.display = 'block';
+    setTimeout(() => elem.style.display = 'none', 5000);
+  }
+
+  // Show success message
+  function showSuccess(elementId, message) {
+    const elem = document.getElementById(elementId);
+    elem.textContent = message;
+    elem.style.display = 'block';
+    setTimeout(() => elem.style.display = 'none', 5000);
+  }
+</script>
+
+</body>
+</html>
