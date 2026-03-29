@@ -2,16 +2,15 @@
 /**
  * Secure Merchant Registration
  * 
- * - Creates merchant profile
+ * - Creates merchant profile with password authentication
  * - Generates hashed API key
- * - Never stores plain-text keys
+ * - Hashes password with bcrypt
+ * - Never stores plain-text keys or passwords
  */
-
 import { createApiKey } from '../../../lib/api-key-security.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -22,13 +21,31 @@ export async function onRequestPost(context) {
     const {
       business_name,
       business_email,
-      wallet_address
+      wallet_address,
+      password  // NEW: Password for portal login
     } = await request.json();
 
-    // Validate
+    // Validate required fields
     if (!business_name || !business_email || !wallet_address) {
       return Response.json({
-        error: 'Missing required fields'
+        error: 'Missing required fields: business_name, business_email, wallet_address'
+      }, { status: 400, headers: corsHeaders });
+    }
+
+    // Validate password (if provided - for portal registration)
+    if (password) {
+      if (password.length < 8) {
+        return Response.json({
+          error: 'Password must be at least 8 characters'
+        }, { status: 400, headers: corsHeaders });
+      }
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(business_email)) {
+      return Response.json({
+        error: 'Invalid email format'
       }, { status: 400, headers: corsHeaders });
     }
 
@@ -46,23 +63,48 @@ export async function onRequestPost(context) {
     // Generate merchant ID
     const merchantId = `merch_${Date.now()}_${generateSecureKey(8)}`;
 
-    // Create merchant account
+    // Hash password if provided (for portal users)
+    let password_hash = null;
+    if (password) {
+      try {
+        // Dynamic import of bcryptjs
+        const bcrypt = await import('bcryptjs');
+        
+        // Generate salt and hash password (cost factor 12)
+        const salt = await bcrypt.genSalt(12);
+        password_hash = await bcrypt.hash(password, salt);
+        
+        console.log('✅ Password hashed for merchant:', merchantId);
+      } catch (error) {
+        console.error('❌ Password hashing error:', error);
+        return Response.json({
+          error: 'Password hashing failed. Please try again.'
+        }, { status: 500, headers: corsHeaders });
+      }
+    }
+
+    // Create merchant account with password support
     await env.DB.prepare(`
       INSERT INTO merchants (
         merchant_id,
         wallet_address,
         business_name,
         business_email,
+        password_hash,
         credit_balance,
         total_deposits,
+        total_processed,
         payments_enabled,
-        created_at
-      ) VALUES (?, ?, ?, ?, 0, 0, 0, unixepoch())
+        low_balance_warning,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 0, unixepoch(), unixepoch())
     `).bind(
       merchantId,
       wallet_address,
       business_name,
-      business_email
+      business_email,
+      password_hash  // Will be null if password not provided
     ).run();
 
     // Create secure API key (hashed in database)
@@ -70,8 +112,12 @@ export async function onRequestPost(context) {
 
     console.log('✅ Merchant registered:', merchantId);
     console.log('⚠️ API key generated (show ONCE!):', keyResult.key_prefix);
+    if (password_hash) {
+      console.log('✅ Portal account created with password');
+    }
 
-    return Response.json({
+    // Return different response based on registration type
+    const response = {
       success: true,
       merchant_id: merchantId,
       
@@ -81,6 +127,8 @@ export async function onRequestPost(context) {
       key_prefix: keyResult.key_prefix,
       
       wallet_address: wallet_address,
+      business_name: business_name,
+      business_email: business_email,
       credit_balance: 0,
       
       // Credit system explanation
@@ -88,18 +136,38 @@ export async function onRequestPost(context) {
         formula: '1π deposit = 1 credit',
         fee: '2% per transaction (amount × 0.02 credits)',
         example: 'Deposit 200π → Process 10,000π worth of payments'
-      },
-      
-      warning: '⚠️ SAVE YOUR API KEY NOW! It will never be shown again.',
-      
-      next_step: 'deposit_credits',
-      deposit_url: `${request.url.split('/api')[0]}/merchant/deposit?merchant_id=${merchantId}`
-    }, { headers: corsHeaders });
+      }
+    };
+
+    // Add different messages based on registration type
+    if (password) {
+      // Portal registration
+      response.message = 'Account created successfully! Please sign in with your email and password.';
+      response.portal_login_url = `${request.url.split('/api')[0]}/merchant-portal.html`;
+    } else {
+      // API-only registration
+      response.warning = '⚠️ SAVE YOUR API KEY NOW! It will never be shown again.';
+      response.next_step = 'deposit_credits';
+      response.deposit_url = `${request.url.split('/api')[0]}/merchant/deposit?merchant_id=${merchantId}`;
+    }
+
+    return Response.json(response, { headers: corsHeaders });
 
   } catch (error) {
     console.error('❌ Registration error:', error);
+    
+    // Check for duplicate key error
+    if (error.message && error.message.includes('UNIQUE constraint')) {
+      return Response.json({ 
+        error: 'Email already registered' 
+      }, { 
+        status: 400, 
+        headers: corsHeaders 
+      });
+    }
+    
     return Response.json({ 
-      error: error.message 
+      error: 'Registration failed. Please try again.' 
     }, { 
       status: 500, 
       headers: corsHeaders 
