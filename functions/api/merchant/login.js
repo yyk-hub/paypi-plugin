@@ -19,8 +19,7 @@ export async function onRequestPost(context) {
     const { business_email, password } = await request.json();
     
     // Normalize email
-    const email =
-    business_email?.toLowerCase().trim();
+    const email = business_email?.toLowerCase().trim();
     
     // Validate input
     if (!email || !password) {
