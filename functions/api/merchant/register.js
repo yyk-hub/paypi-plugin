@@ -1,15 +1,16 @@
 // functions/api/merchant/register.js
 /**
- * Secure Merchant Registration
+ * Secure Merchant Registration (CLEAN ARCHITECTURE)
  * 
  * - Creates merchant profile with password authentication
- * - Generates hashed API key
+ * - Generates hashed API key in SEPARATE api_keys table
  * - Hashes password with bcrypt
+ * - Smart activation: Portal users (with password) auto-activated
  * - Never stores plain-text keys or passwords
  */
 import { createApiKey } from '../../../lib/api-key-security.js';
 
-export async function onRequestPost(context) {
+export async function onRequest(context) {
   const { request, env } = context;
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -17,14 +18,26 @@ export async function onRequestPost(context) {
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
+  // Handle OPTIONS (CORS preflight)
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  // Only allow POST
+  if (request.method !== 'POST') {
+    return Response.json({
+      error: 'Method not allowed. Use POST.'
+    }, { status: 405, headers: corsHeaders });
+  }
+
   try {
     const {
       business_name,
       business_email,
       wallet_address,
-      password  // NEW: Password for portal login
+      password  // Portal login password (optional)
     } = await request.json();
-    
+
     // Normalize email
     const email =
     business_email?.toLowerCase().trim();
@@ -37,12 +50,10 @@ export async function onRequestPost(context) {
     }
 
     // Validate password (if provided - for portal registration)
-    if (password) {
-      if (password.length < 8) {
-        return Response.json({
-          error: 'Password must be at least 8 characters'
-        }, { status: 400, headers: corsHeaders });
-      }
+    if (password && password.length < 8) {
+      return Response.json({
+        error: 'Password must be at least 8 characters'
+      }, { status: 400, headers: corsHeaders });
     }
 
     // Validate email format
@@ -71,10 +82,7 @@ export async function onRequestPost(context) {
     let password_hash = null;
     if (password) {
       try {
-        // Dynamic import of bcryptjs
         const bcrypt = await import('bcryptjs');
-        
-        // Generate salt and hash password (cost factor 12)
         const salt = await bcrypt.genSalt(12);
         password_hash = await bcrypt.hash(password, salt);
         
@@ -87,7 +95,12 @@ export async function onRequestPost(context) {
       }
     }
 
-    // Create merchant account with password support
+    // SMART ACTIVATION LOGIC:
+    // Portal users (with password) → auto-activate (payments_enabled = 1)
+    // API-only users (no password) → manual approval (payments_enabled = 0)
+    const payments_enabled = password ? 1 : 0;
+
+    // Create merchant account
     await env.DB.prepare(`
       INSERT INTO merchants (
         merchant_id,
@@ -102,38 +115,54 @@ export async function onRequestPost(context) {
         low_balance_warning,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 0, unixepoch(), unixepoch())
+      ) VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, 0, unixepoch(), unixepoch())
     `).bind(
       merchantId,
       wallet_address,
       business_name,
       email,
-      password_hash  // Will be null if password not provided
+      password_hash,
+      payments_enabled  // Smart activation
     ).run();
 
-    // Create secure API key (hashed in database)
+    // Create secure API key in SEPARATE api_keys table (hashed)
+    // This uses your existing createApiKey() function
     const keyResult = await createApiKey(env, merchantId);
 
+    // HYBRID APPROACH: Store key_prefix in merchants table for UI convenience
+    // This allows portal to display key without JOIN to api_keys table
+    await env.DB.prepare(`
+      UPDATE merchants SET api_key = ? WHERE merchant_id = ?
+    `).bind(
+      keyResult.key_prefix,  // Store PREFIX only, not full key!
+      merchantId
+    ).run();
+
     console.log('✅ Merchant registered:', merchantId);
-    console.log('⚠️ API key generated (show ONCE!):', keyResult.key_prefix);
+    console.log('✅ API key created (hashed in api_keys table):', keyResult.key_prefix);
+    console.log('✅ Key prefix stored in merchants.api_key for UI display');
     if (password_hash) {
-      console.log('✅ Portal account created with password');
+      console.log('✅ Portal account created (auto-activated)');
+    } else {
+      console.log('⚠️ API-only account (requires manual activation)');
     }
 
-    // Return different response based on registration type
+    // Build response
     const response = {
       success: true,
       merchant_id: merchantId,
       
-      // ⚠️ CRITICAL: This is the ONLY time the plain-text key is shown!
+      // ⚠️ CRITICAL: Plain-text API key shown ONLY ONCE!
+      // After this, only key_prefix is visible
       api_key: keyResult.api_key,
       key_id: keyResult.key_id,
       key_prefix: keyResult.key_prefix,
       
-      wallet_address: wallet_address,
       business_name: business_name,
       business_email: business_email,
+      wallet_address: wallet_address,
       credit_balance: 0,
+      payments_enabled: payments_enabled,
       
       // Credit system explanation
       credit_system: {
@@ -143,14 +172,17 @@ export async function onRequestPost(context) {
       }
     };
 
-    // Add different messages based on registration type
+    // Different messages based on registration type
     if (password) {
-      // Portal registration
-      response.message = 'Account created successfully! Please sign in with your email and password.';
+      // Portal registration - auto-activated
+      response.message = 'Account created and activated! Please sign in with your email and password.';
       response.portal_login_url = `${request.url.split('/api')[0]}/merchant-portal.html`;
+      response.status = 'active';
     } else {
-      // API-only registration
+      // API-only registration - manual approval
       response.warning = '⚠️ SAVE YOUR API KEY NOW! It will never be shown again.';
+      response.message = 'Account created. Please deposit credits to start processing payments.';
+      response.status = 'pending_activation';
       response.next_step = 'deposit_credits';
       response.deposit_url = `${request.url.split('/api')[0]}/merchant/deposit?merchant_id=${merchantId}`;
     }
@@ -190,14 +222,4 @@ function generateSecureKey(length) {
   }
   
   return result;
-}
-
-export async function onRequestOptions() {
-  return new Response(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
 }
