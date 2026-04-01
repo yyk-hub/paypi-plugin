@@ -39,8 +39,7 @@ export async function onRequest(context) {
     } = await request.json();
 
     // Normalize email
-    const email =
-    business_email?.toLowerCase().trim();
+    const email = business_email?.toLowerCase().trim();
 
     // Validate required fields
     if (!business_name || !email || !wallet_address) {
@@ -159,7 +158,7 @@ export async function onRequest(context) {
       key_prefix: keyResult.key_prefix,
       
       business_name: business_name,
-      business_email: business_email,
+      business_email: email,
       wallet_address: wallet_address,
       credit_balance: 0,
       payments_enabled: payments_enabled,
