@@ -24,9 +24,13 @@ export async function onRequestPost(context) {
       wallet_address,
       password  // NEW: Password for portal login
     } = await request.json();
+    
+    // Normalize email
+    const email =
+    business_email?.toLowerCase().trim();
 
     // Validate required fields
-    if (!business_name || !business_email || !wallet_address) {
+    if (!business_name || !email || !wallet_address) {
       return Response.json({
         error: 'Missing required fields: business_name, business_email, wallet_address'
       }, { status: 400, headers: corsHeaders });
@@ -43,7 +47,7 @@ export async function onRequestPost(context) {
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(business_email)) {
+    if (!emailRegex.test(email)) {
       return Response.json({
         error: 'Invalid email format'
       }, { status: 400, headers: corsHeaders });
@@ -52,7 +56,7 @@ export async function onRequestPost(context) {
     // Check if email exists
     const existing = await env.DB.prepare(
       'SELECT merchant_id FROM merchants WHERE business_email = ?'
-    ).bind(business_email).first();
+    ).bind(email).first();
 
     if (existing) {
       return Response.json({
@@ -103,7 +107,7 @@ export async function onRequestPost(context) {
       merchantId,
       wallet_address,
       business_name,
-      business_email,
+      email,
       password_hash  // Will be null if password not provided
     ).run();
 

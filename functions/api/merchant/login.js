@@ -17,9 +17,13 @@ export async function onRequestPost(context) {
 
   try {
     const { business_email, password } = await request.json();
-
+    
+    // Normalize email
+    const email =
+    business_email?.toLowerCase().trim();
+    
     // Validate input
-    if (!business_email || !password) {
+    if (!email || !password) {
       return Response.json({
         success: false,
         error: 'Email and password are required'
@@ -29,7 +33,7 @@ export async function onRequestPost(context) {
     // Find merchant by email
     const merchant = await env.DB.prepare(
       'SELECT * FROM merchants WHERE business_email = ?'
-    ).bind(business_email).first();
+    ).bind(email).first();
 
     if (!merchant) {
       return Response.json({
