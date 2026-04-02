@@ -457,8 +457,8 @@
     
     <form id="loginForm">
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="loginEmail" required>
+        <label>Business Email</label>
+        <input type="email" id="loginEmail" required placeholder="your@business.com">
       </div>
       
       <div class="form-group">
@@ -487,17 +487,17 @@
     <form id="registerForm">
       <div class="form-group">
         <label>Business Name</label>
-        <input type="text" id="registerBusinessName" required>
+        <input type="text" id="registerBusinessName" required placeholder="Your Business Name">
       </div>
       
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="registerEmail" required>
+        <label>Business Email</label>
+        <input type="email" id="registerEmail" required placeholder="business@example.com">
       </div>
       
       <div class="form-group">
         <label>Password</label>
-        <input type="password" id="registerPassword" required minlength="8">
+        <input type="password" id="registerPassword" required minlength="8" placeholder="Min 8 characters">
       </div>
       
       <div class="form-group">
@@ -599,7 +599,7 @@
             <div class="info-value" id="infoBusinessName">-</div>
           </div>
           <div class="info-row">
-            <div class="info-label">Email</div>
+            <div class="info-label">Business Email</div>
             <div class="info-value" id="infoEmail">-</div>
           </div>
           <div class="info-row">
@@ -841,17 +841,17 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
           
           <div class="form-group">
             <label>Business Name</label>
-            <input type="text" id="settingsBusinessName">
+            <input type="text" id="settingsBusinessName" placeholder="Your Business Name">
           </div>
           
           <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="settingsEmail">
+            <label>Business Email</label>
+            <input type="email" id="settingsEmail" placeholder="business@example.com">
           </div>
           
           <div class="form-group">
             <label>Pi Wallet Address</label>
-            <input type="text" id="settingsWallet">
+            <input type="text" id="settingsWallet" placeholder="GXXXXXXX...">
           </div>
           
           <button class="btn btn-primary" style="width: auto;" onclick="saveSettings()">Save Changes</button>
@@ -930,10 +930,7 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
       const response = await fetch('/api/merchant/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          business_email: email,
-          password: password
-        })
+        body: JSON.stringify({ business_email: email, password })
       });
       
       const data = await response.json();
@@ -966,7 +963,7 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
         body: JSON.stringify({
           business_name: businessName,
           business_email: email,
-          password: password,
+          password,
           wallet_address: wallet
         })
       });
@@ -1011,33 +1008,37 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
     const token = localStorage.getItem('merchant_token');
     
     try {
-      const response = await fetch('/api/merchant/stats', {
+      // Use /me endpoint (not /stats - doesn't exist yet)
+      const response = await fetch('/api/merchant/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       const data = await response.json();
       
       if (data.success) {
-        // Update stats
-        document.getElementById('statCredits').textContent = data.credit_balance.toFixed(2);
-        document.getElementById('statOrders').textContent = data.total_orders;
-        document.getElementById('statVolume').textContent = data.total_volume.toFixed(7) + 'π';
-        document.getElementById('statRefunds').textContent = data.total_refunds;
+        // /me returns { success: true, merchant: {...} }
+        const merchant = data.merchant;
         
-        // Update merchant info
-        document.getElementById('merchantName').textContent = data.business_name;
-        document.getElementById('infoBusinessName').textContent = data.business_name;
-        document.getElementById('infoEmail').textContent = data.email;
-        document.getElementById('infoMerchantId').textContent = data.merchant_id;
-        document.getElementById('infoCredits').textContent = data.credit_balance.toFixed(2);
-        document.getElementById('infoWallet').textContent = data.pi_wallet_address;
+        // Update stats
+        document.getElementById('statCredits').textContent = merchant.credit_balance.toFixed(2);
+        document.getElementById('statOrders').textContent = '0'; // TODO: Need stats endpoint
+        document.getElementById('statVolume').textContent = '0π'; // TODO: Need stats endpoint  
+        document.getElementById('statRefunds').textContent = '0'; // TODO: Need stats endpoint
+        
+        // Update merchant info - use correct field names
+        document.getElementById('merchantName').textContent = merchant.business_name;
+        document.getElementById('infoBusinessName').textContent = merchant.business_name;
+        document.getElementById('infoEmail').textContent = merchant.business_email;
+        document.getElementById('infoMerchantId').textContent = merchant.merchant_id;
+        document.getElementById('infoCredits').textContent = merchant.credit_balance.toFixed(2);
+        document.getElementById('infoWallet').textContent = merchant.wallet_address;
         
         // Store for other sections
-        merchantData = data;
-        fullApiKey = data.api_key;
+        merchantData = merchant;
+        fullApiKey = merchant.api_key || '';
         
         // Update API keys section
-        document.getElementById('apiMerchantId').textContent = data.merchant_id;
+        document.getElementById('apiMerchantId').textContent = merchant.merchant_id;
       }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -1074,7 +1075,8 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
     const tbody = document.getElementById('ordersTableBody');
     
     try {
-      const response = await fetch('/api/merchant/orders', {
+      // Use /list-orders endpoint (not /orders)
+      const response = await fetch('/api/merchant/list-orders', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -1187,8 +1189,8 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
   function loadSettings() {
     if (merchantData) {
       document.getElementById('settingsBusinessName').value = merchantData.business_name;
-      document.getElementById('settingsEmail').value = merchantData.email;
-      document.getElementById('settingsWallet').value = merchantData.pi_wallet_address;
+      document.getElementById('settingsEmail').value = merchantData.business_email;
+      document.getElementById('settingsWallet').value = merchantData.wallet_address;
     }
   }
 
