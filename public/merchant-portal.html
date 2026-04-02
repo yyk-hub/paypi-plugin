@@ -930,7 +930,10 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
       const response = await fetch('/api/merchant/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          business_email: email,
+          password: password
+        })
       });
       
       const data = await response.json();
@@ -962,9 +965,9 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           business_name: businessName,
-          email,
-          password,
-          pi_wallet_address: wallet
+          business_email: email,
+          password: password,
+          wallet_address: wallet
         })
       });
       
@@ -1264,8 +1267,8 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
         },
         body: JSON.stringify({
           business_name: businessName,
-          email,
-          pi_wallet_address: wallet
+          business_email: email,
+          wallet_address: wallet
         })
       });
       
