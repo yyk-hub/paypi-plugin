@@ -1075,14 +1075,14 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
     const tbody = document.getElementById('ordersTableBody');
     
     try {
-      // Use /list-orders endpoint (not /orders)
-      const response = await fetch('/api/merchant/list-orders', {
+      // Use /orders endpoint (portal-friendly, accepts Bearer token)
+      const response = await fetch('/api/merchant/orders', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       const data = await response.json();
       
-      if (data.success && data.orders.length > 0) {
+      if (data.success && data.orders && data.orders.length > 0) {
         tbody.innerHTML = data.orders.map(order => `
           <tr>
             <td>${order.order_id}</td>
@@ -1096,6 +1096,7 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">No orders found</td></tr>';
       }
     } catch (error) {
+      console.error('Load orders error:', error);
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Failed to load orders</td></tr>';
     }
   }
