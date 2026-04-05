@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Merchant Portal - PayPi</title>
+  
+  <!-- Pi SDK for credit deposits -->
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -1245,11 +1249,86 @@ curl -X POST https://paypi-plugin.pages.dev/api/pi/create \
   }
 
   // Add credits
-  function addCredits() {
-    const amount = prompt('How many credits would you like to add? (1π = 1 credit)');
-    if (amount && !isNaN(amount) && amount > 0) {
-      // This would create a Pi payment for deposit
-      alert('Credit deposit feature coming soon! For now, contact support to add credits.');
+  async function addCredits() {
+    const amount = prompt('How many Pi would you like to deposit? (Min 10π)\n\n1π = 1 credit\nProcessing fee: 2% per transaction');
+    
+    if (!amount || isNaN(amount)) {
+      return;
+    }
+    
+    const depositAmount = parseFloat(amount);
+    
+    if (depositAmount < 10) {
+      alert('Minimum deposit is 10π');
+      return;
+    }
+
+    const token = localStorage.getItem('merchant_token');
+
+    try {
+      // Step 1: Create deposit on backend
+      const response = await fetch('/api/merchant/credits/deposit', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ amount: depositAmount })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('Failed to create deposit: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      console.log('Deposit created:', data.deposit_id);
+
+      // Step 2: Open Pi payment using Pi SDK
+      const payment = await Pi.createPayment({
+        amount: data.payment_config.amount,
+        memo: data.payment_config.memo,
+        metadata: data.payment_config.metadata
+      });
+
+      console.log('Payment approved:', payment.identifier);
+
+      // Step 3: Complete deposit on backend
+      const completeResponse = await fetch('/api/merchant/credits/deposit/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deposit_id: data.deposit_id,
+          pi_payment_id: payment.identifier,
+          txid: payment.transaction?.txid || null
+        })
+      });
+
+      const completeData = await completeResponse.json();
+
+      if (completeData.success) {
+        alert(`✅ Success!\n\n${completeData.credits_added} credits added\nNew balance: ${completeData.new_balance}\n\nYou can now process ${(completeData.new_balance / 0.02).toFixed(0)}π in payments!`);
+        
+        // Refresh dashboard to show new balance
+        loadDashboardData();
+        
+        // If on credits page, reload transactions
+        if (document.getElementById('creditsSection').classList.contains('active')) {
+          loadCreditTransactions();
+        }
+      } else {
+        alert('⚠️ Payment completed but failed to credit account.\n\nDeposit ID: ' + data.deposit_id + '\n\nPlease contact support.');
+      }
+
+    } catch (error) {
+      console.error('Deposit error:', error);
+      
+      if (error.message && error.message.includes('cancelled')) {
+        alert('Deposit cancelled');
+      } else {
+        alert('Deposit failed: ' + error.message + '\n\nPlease try again or contact support.');
+      }
     }
   }
 
